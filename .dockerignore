@@ -1,0 +1,6 @@
+.build/
+.ctrlp
+.env/
+.idea/
+.tmp/
+.vscode/

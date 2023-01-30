@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+package foo.v1;
+
+import "google/protobuf/descriptor.proto";
+
+option go_package = "foopb";
+
+extend google.protobuf.FieldOptions {
+  bool sensitive = 30000;
+}
+
+message RedactedMessage {
+  string name = 1 [(sensitive) = true];
+}
+
+message RedactedMessageField {
+  RedactedMessage name = 1;
+}
+
+message RedactedRepeatedField {
+  repeated string name = 1 [(sensitive) = true];
+}
+
+message RedactedMap {
+  map<string, RedactedMessage> name = 1;
+}
+
+message RedactedOneOf {
+  oneof oneof_field {
+    int64 foo1 = 1 [(sensitive) = true];
+    string foo2 = 2 [(sensitive) = true];
+    uint32 foo3 = 3 [(sensitive) = true];
+  }
+}
+
+message RedactedEnum {
+  Enum name = 1[(sensitive) = true];
+}
+
+message RedactedRepeatedEnum {
+  repeated Enum name = 1[(sensitive) = true];
+}
+
+message NotRedactedField {
+  string name = 1;
+}
+
+enum Enum {
+  ENUM_UNSPECIFIED = 0;
+  ENUM_FIRST = 1;
+  ENUM_SECOND = 2;
+  ENUM_THIRD = 3;
+}
