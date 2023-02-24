@@ -14,7 +14,10 @@
 
 package prototransform
 
-import "google.golang.org/protobuf/reflect/protoreflect"
+import (
+	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/types/descriptorpb"
+)
 
 // Filters is a slice of filters. When there is more than one element, they
 // are applied in order. In other words, the first filter is evaluated first.
@@ -41,6 +44,20 @@ func Redact(predicate func(protoreflect.FieldDescriptor) bool) Filter {
 		redactMessage(msg, predicate)
 		return msg
 	}
+}
+
+// HasDebugRedactOption returns a function that can be used as a predicate, with
+// [Redact], to omit fields where the `debug_redact` field option is set to true.
+//
+//	message UserDetails {
+//	  int64 user_id = 1;
+//	  string name = 2;
+//	  string email = 4;
+//	  string ssn = 3 [debug_redact=true]; // social security number is sensitive
+//	}
+func HasDebugRedactOption(fd protoreflect.FieldDescriptor) bool {
+	opts, ok := fd.Options().(*descriptorpb.FieldOptions)
+	return ok && opts.GetDebugRedact()
 }
 
 func redactMessage(message protoreflect.Message, redaction func(protoreflect.FieldDescriptor) bool) {
