@@ -1,7 +1,7 @@
 buf.build/gen/go/bufbuild/reflect/bufbuild/connect-go v1.5.2-20230130220156-b9ed617e60db.1 h1:jX8HmuTfd3wjn/8K5nIPFhz7gUofK4udzi6edZej7SA=
 buf.build/gen/go/bufbuild/reflect/bufbuild/connect-go v1.5.2-20230130220156-b9ed617e60db.1/go.mod h1:d2GXZwA6Dom1nUsq+nU1HASbn8ex0BCHFIrq/qapnJE=
-buf.build/gen/go/bufbuild/reflect/protocolbuffers/go v1.28.1-20230130220156-b9ed617e60db.4 h1:NZyyoI4tyfRmrp6jsxEMHGQRbctyy1gTA729Yf1/m+E=
-buf.build/gen/go/bufbuild/reflect/protocolbuffers/go v1.28.1-20230130220156-b9ed617e60db.4/go.mod h1:gl3J582+18aYxeIe4q7ybB8AymFsdrW9arN5hv3sjh0=
+buf.build/gen/go/bufbuild/reflect/protocolbuffers/go v1.29.0-20230130220156-b9ed617e60db.1 h1:mK3Hp1CHdoAIsSRT7a/Q5uzFQVwY7buL1uHbBoTcahY=
+buf.build/gen/go/bufbuild/reflect/protocolbuffers/go v1.29.0-20230130220156-b9ed617e60db.1/go.mod h1:QqMzypLQ1DC1qMzlTg36WrmkLSBz7hkNQ0lbTqv9kkc=
 github.com/bufbuild/connect-go v1.5.2 h1:G4EZd5gF1U1ZhhbVJXplbuUnfKpBZ5j5izqIwu2g2W8=
 github.com/bufbuild/connect-go v1.5.2/go.mod h1:GmMJYR6orFqD0Y6ZgX8pwQ8j9baizDrIQMm1/a6LnHk=
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
@@ -35,7 +35,6 @@ github.com/stretchr/testify v1.8.2 h1:+h33VjcLVPDHtOdpUCuF+7gSuG3yGIftsP1YvFihtJ
 github.com/stretchr/testify v1.8.2/go.mod h1:w2LPCIKwWwSfY2zedu0+kehJoqGctiVI29o6fzry7u4=
 golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
 google.golang.org/protobuf v1.26.0-rc.1/go.mod h1:jlhhOSvTdKEhbULTjvd4ARK9grFBp09yW+WbY/TyQbw=
-google.golang.org/protobuf v1.28.1/go.mod h1:HV8QOd/L58Z+nl8r43ehVNZIU/HEI6OcFqwMG9pJV4I=
 google.golang.org/protobuf v1.29.0 h1:44S3JjaKmLEE4YIkjzexaP+NzZsudE3Zin5Njn/pYX0=
 google.golang.org/protobuf v1.29.0/go.mod h1:HV8QOd/L58Z+nl8r43ehVNZIU/HEI6OcFqwMG9pJV4I=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
