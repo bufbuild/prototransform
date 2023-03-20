@@ -18,11 +18,12 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/proto"
 	"log"
 	"os"
 	"time"
+
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 var inputData = []byte(`{"sentence": "I feel happy."}`)
