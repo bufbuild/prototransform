@@ -36,7 +36,7 @@ jobs:
           go-version: 1.19.x
           check-latest: true
           cache: true
-      - uses: bufbuild/buf-setup-action@v1.16.0
+      - uses: bufbuild/buf-setup-action@v1.17.0
         with:
           github_token: ${{ github.token }}
       - name: Generate
@@ -56,7 +56,7 @@ jobs:
           go-version: 1.19.x
           check-latest: true
           cache: true
-      - uses: bufbuild/buf-setup-action@v1.16.0
+      - uses: bufbuild/buf-setup-action@v1.17.0
         with:
           github_token: ${{ github.token }}
           buf_user: ${{ secrets.BUF_USER }}
