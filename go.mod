@@ -5,7 +5,7 @@ go 1.19
 require (
 	buf.build/gen/go/bufbuild/reflect/bufbuild/connect-go v1.5.2-20230130220156-b9ed617e60db.1
 	buf.build/gen/go/bufbuild/reflect/protocolbuffers/go v1.30.0-20230130220156-b9ed617e60db.1
-	github.com/bufbuild/connect-go v1.5.2
+	github.com/bufbuild/connect-go v1.6.0
 	github.com/google/go-cmp v0.5.9
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.8.2
