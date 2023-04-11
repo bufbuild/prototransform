@@ -3,7 +3,7 @@ module github.com/bufbuild/prototransform
 go 1.19
 
 require (
-	buf.build/gen/go/bufbuild/reflect/bufbuild/connect-go v1.5.2-20230130220156-b9ed617e60db.1
+	buf.build/gen/go/bufbuild/reflect/bufbuild/connect-go v1.6.0-20230130220156-b9ed617e60db.1
 	buf.build/gen/go/bufbuild/reflect/protocolbuffers/go v1.30.0-20230130220156-b9ed617e60db.1
 	github.com/bufbuild/connect-go v1.6.0
 	github.com/google/go-cmp v0.5.9
