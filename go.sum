@@ -2,8 +2,8 @@ buf.build/gen/go/bufbuild/reflect/bufbuild/connect-go v1.6.0-20230130220156-b9ed
 buf.build/gen/go/bufbuild/reflect/bufbuild/connect-go v1.6.0-20230130220156-b9ed617e60db.1/go.mod h1:ZEQvQXAKeE/Gy6bOcgl1tIHYQxFXLXkpKlEYq2qSSRk=
 buf.build/gen/go/bufbuild/reflect/protocolbuffers/go v1.30.0-20230130220156-b9ed617e60db.1 h1:GQFLBZ8IJnvMnXYaoCySK3/+1keqnWjiOb5Bql3vHGk=
 buf.build/gen/go/bufbuild/reflect/protocolbuffers/go v1.30.0-20230130220156-b9ed617e60db.1/go.mod h1:BZWnirvcO66KgvR0Ex0hYZrXWugnFol3nV+Q0q4jSH4=
-github.com/bufbuild/connect-go v1.6.0 h1:OCEB8JuEuvcY5lEKZCQE95CUscqkDtLnQceNhDgi92k=
-github.com/bufbuild/connect-go v1.6.0/go.mod h1:GmMJYR6orFqD0Y6ZgX8pwQ8j9baizDrIQMm1/a6LnHk=
+github.com/bufbuild/connect-go v1.7.0 h1:MGp82v7SCza+3RhsVhV7aMikwxvI3ZfD72YiGt8FYJo=
+github.com/bufbuild/connect-go v1.7.0/go.mod h1:GmMJYR6orFqD0Y6ZgX8pwQ8j9baizDrIQMm1/a6LnHk=
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
