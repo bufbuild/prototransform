@@ -24,7 +24,7 @@ import (
 	"time"
 
 	"buf.build/gen/go/bufbuild/reflect/bufbuild/connect-go/buf/reflect/v1beta1/reflectv1beta1connect"
-	reflectv1beta1 "buf.build/gen/go/bufbuild/reflect/protocolbuffers/go/buf/reflect/v1beta1"
+	"buf.build/gen/go/bufbuild/reflect/protocolbuffers/go/buf/reflect/v1beta1"
 	"github.com/bufbuild/connect-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -175,7 +175,7 @@ func TestNewSchemaWatcher_cacheKey(t *testing.T) {
 func TestSchemaWatcher_getFileDescriptorSet(t *testing.T) {
 	t.Parallel()
 	s := &SchemaWatcher{
-		client: newFakeFileDescriptorSetService(),
+		poller: NewDescriptorPoller(newFakeFileDescriptorSetService(), "", ""),
 	}
 	got, _, err := s.getFileDescriptorSet(context.Background())
 	require.NoError(t, err)
@@ -256,7 +256,7 @@ func TestSchemaWatcher_updateResolver(t *testing.T) {
 		require.NoError(t, err)
 
 		schemaWatcher := &SchemaWatcher{
-			client:   newFakeFileDescriptorSetService(),
+			poller:   NewDescriptorPoller(newFakeFileDescriptorSetService(), "", ""),
 			resolver: resolver,
 		}
 		_, err = schemaWatcher.resolver.FindMessageByName("foo.bar.Message")
@@ -269,11 +269,11 @@ func TestSchemaWatcher_updateResolver(t *testing.T) {
 	t.Run("updateResolver fails", func(t *testing.T) {
 		t.Parallel()
 		schemaWatcher := &SchemaWatcher{
-			client: &fakeFileDescriptorSetService{
+			poller: NewDescriptorPoller(&fakeFileDescriptorSetService{
 				getFileDescriptorSetFunc: func(context.Context, *connect.Request[reflectv1beta1.GetFileDescriptorSetRequest]) (*connect.Response[reflectv1beta1.GetFileDescriptorSetResponse], error) {
 					return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("foo"))
 				},
-			},
+			}, "", ""),
 		}
 		err := schemaWatcher.updateResolver(context.Background())
 		require.Error(t, err)
@@ -287,13 +287,13 @@ func TestSchemaWatcher_updateResolver(t *testing.T) {
 			},
 		}
 		schemaWatcher := &SchemaWatcher{
-			client: &fakeFileDescriptorSetService{
+			poller: NewDescriptorPoller(&fakeFileDescriptorSetService{
 				getFileDescriptorSetFunc: func(context.Context, *connect.Request[reflectv1beta1.GetFileDescriptorSetRequest]) (*connect.Response[reflectv1beta1.GetFileDescriptorSetResponse], error) {
 					return connect.NewResponse(&reflectv1beta1.GetFileDescriptorSetResponse{
 						FileDescriptorSet: emptySchema,
 					}), nil
 				},
-			},
+			}, "", ""),
 		}
 		err := schemaWatcher.updateResolver(context.Background())
 		require.Error(t, err)
@@ -549,6 +549,10 @@ func newFakeFileDescriptorSetService() *fakeFileDescriptorSetService {
 			}), nil
 		},
 	}
+}
+
+func newFakeDescriptorPoller() DescriptorPoller {
+	return NewDescriptorPoller(newFakeFileDescriptorSetService(), "", "")
 }
 
 func fakeFileDescriptorSet() *descriptorpb.FileDescriptorSet {
