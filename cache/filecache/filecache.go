@@ -72,6 +72,8 @@ func New(config Config) (prototransform.Cache, error) {
 	}
 	if config.FilenameExtension == "" {
 		config.FilenameExtension = ".bin"
+	} else if !strings.HasPrefix(config.FilenameExtension, ".") {
+		config.FilenameExtension = "." + config.FilenameExtension
 	}
 	if config.FileMode == 0 {
 		config.FileMode = 0600
@@ -88,7 +90,7 @@ func New(config Config) (prototransform.Cache, error) {
 		return nil, fmt.Errorf("%s is not a directory", path)
 	}
 	testFile := filepath.Join(path, ".test")
-	f, err := os.OpenFile(testFile, os.O_WRONLY|os.O_APPEND, 0600)
+	f, err := os.OpenFile(testFile, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0600)
 	if err != nil {
 		if os.IsPermission(err) {
 			return nil, fmt.Errorf("insufficient permission to create file in %s", path)

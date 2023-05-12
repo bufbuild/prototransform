@@ -63,14 +63,7 @@ func (c *cache) Load(ctx context.Context, key string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	switch reply := reply.(type) {
-	case []byte:
-		return reply, nil
-	case string:
-		return []byte(reply), nil
-	default:
-		return nil, fmt.Errorf("unexpected type of reply from redis: %T", reply)
-	}
+	return replyToBytes(reply)
 }
 
 func (c *cache) Save(ctx context.Context, key string, data []byte) error {
@@ -95,4 +88,15 @@ func (c *cache) Save(ctx context.Context, key string, data []byte) error {
 		_, err = conn.Do("set", args...)
 	}
 	return err
+}
+
+func replyToBytes(reply any) ([]byte, error) {
+	switch reply := reply.(type) {
+	case []byte:
+		return reply, nil
+	case string:
+		return []byte(reply), nil
+	default:
+		return nil, fmt.Errorf("unexpected type of reply from redis: %T", reply)
+	}
 }
