@@ -12,16 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package prototransform
+package prototransform_test
 
 import (
 	"context"
 	"encoding/hex"
 	"fmt"
 	"log"
-	"os"
 	"time"
 
+	"github.com/bufbuild/prototransform"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
@@ -30,25 +30,29 @@ var inputData = []byte(`{"sentence": "I feel happy."}`)
 
 const (
 	messageName = "buf.connect.demo.eliza.v1.SayRequest"
+
+	moduleName = "buf.build/bufbuild/eliza"
 )
 
 func Example() {
-	token := os.Getenv("BUF_TOKEN")
-	if token == "" {
-		log.Fatalf("Token not supplied, for help with authenticating with the Buf Schema Registry visit: https://docs.buf.build/bsr/authentication")
+	token, err := prototransform.BufTokenFromEnvironment(moduleName)
+	if err != nil {
+		log.Fatalf("Failed to get token from environment: %v\n"+
+			"For help with authenticating with the Buf Schema Registry visit: https://docs.buf.build/bsr/authentication",
+			err)
 	}
 	// Supply auth credentials to the BSR
-	client := NewDefaultFileDescriptorSetServiceClient(token)
+	client := prototransform.NewDefaultFileDescriptorSetServiceClient(token)
 	// Configure the module for schema watcher
-	cfg := &SchemaWatcherConfig{
-		SchemaPoller: NewSchemaPoller(
+	cfg := &prototransform.SchemaWatcherConfig{
+		SchemaPoller: prototransform.NewSchemaPoller(
 			client,
-			"buf.build/bufbuild/eliza", // BSR module
-			"main",                     // tag or draft name or leave blank for "latest"
+			moduleName, // BSR module
+			"main",     // tag or draft name or leave blank for "latest"
 		),
 	}
 	ctx := context.Background()
-	schemaWatcher, err := NewSchemaWatcher(ctx, cfg)
+	schemaWatcher, err := prototransform.NewSchemaWatcher(ctx, cfg)
 	if err != nil {
 		log.Fatalf("failed to create schema watcher: %v", err)
 		return
@@ -59,10 +63,10 @@ func Example() {
 		log.Fatalf("schema watcher never became ready: %v", err)
 		return
 	}
-	converter := &Converter{
+	converter := &prototransform.Converter{
 		Resolver:     schemaWatcher,
-		InputFormat:  JSONInputFormat(protojson.UnmarshalOptions{}),
-		OutputFormat: BinaryOutputFormat(proto.MarshalOptions{}),
+		InputFormat:  prototransform.JSONInputFormat(protojson.UnmarshalOptions{}),
+		OutputFormat: prototransform.BinaryOutputFormat(proto.MarshalOptions{}),
 	}
 	convertedMessage, err := converter.ConvertMessage(messageName, inputData)
 	if err != nil {
