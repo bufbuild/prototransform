@@ -37,43 +37,32 @@ import (
 func TestNewSchemaWatcher(t *testing.T) {
 	t.Parallel()
 	client := newFakeFileDescriptorSetService()
+	poller := NewSchemaPoller(client, "buf.build/foo/bar", "abc")
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	t.Run("schema service client not provided", func(t *testing.T) {
+	t.Cleanup(cancel)
+	t.Run("schema poller not provided", func(t *testing.T) {
 		t.Parallel()
-		config := &Config{}
+		config := &SchemaWatcherConfig{}
 		got, err := NewSchemaWatcher(ctx, config)
 		require.Error(t, err)
-		assert.EqualError(t, err, "schema service client not provided")
+		assert.EqualError(t, err, "schema poller not provided")
 		assert.Nil(t, got)
 	})
-	t.Run("buf module not provided", func(t *testing.T) {
+	t.Run("polling period negative", func(t *testing.T) {
 		t.Parallel()
-		config := &Config{
-			Client: client,
+		config := &SchemaWatcherConfig{
+			SchemaPoller:  poller,
+			PollingPeriod: -1,
 		}
 		got, err := NewSchemaWatcher(ctx, config)
 		require.Error(t, err)
-		assert.EqualError(t, err, "buf module not provided")
+		assert.EqualError(t, err, "polling period duration cannot be negative")
 		assert.Nil(t, got)
 	})
 	t.Run("invalid symbol name", func(t *testing.T) {
 		t.Parallel()
-		config := &Config{
-			Client:         client,
-			Module:         "buf.build/foo/bar",
-			IncludeSymbols: []string{"$poop"},
-		}
-		got, err := NewSchemaWatcher(ctx, config)
-		require.Error(t, err)
-		assert.EqualError(t, err, `"$poop" is not a valid symbol name`)
-		assert.Nil(t, got)
-	})
-	t.Run("invalid symbol name", func(t *testing.T) {
-		t.Parallel()
-		config := &Config{
-			Client:         client,
-			Module:         "buf.build/foo/bar",
+		config := &SchemaWatcherConfig{
+			SchemaPoller:   poller,
 			IncludeSymbols: []string{"$poop"},
 		}
 		got, err := NewSchemaWatcher(ctx, config)
@@ -83,9 +72,8 @@ func TestNewSchemaWatcher(t *testing.T) {
 	})
 	t.Run("successfully create schema watcher with default polling period", func(t *testing.T) {
 		t.Parallel()
-		config := &Config{
-			Client: client,
-			Module: "buf.build/foo/bar",
+		config := &SchemaWatcherConfig{
+			SchemaPoller: poller,
 		}
 		got, err := NewSchemaWatcher(ctx, config)
 		require.NoError(t, err)
@@ -100,42 +88,36 @@ func TestNewSchemaWatcher_cacheKey(t *testing.T) {
 	defer cancel()
 	testCases := []struct {
 		name        string
-		config      Config
+		config      SchemaWatcherConfig
 		expectedKey string
 	}{
 		{
 			name: "no cache means no key",
-			config: Config{
-				Client:  client,
-				Module:  "buf.build/foo/bar",
-				Version: "blah",
+			config: SchemaWatcherConfig{
+				SchemaPoller: NewSchemaPoller(client, "buf.build/foo/bar", "blah"),
 			},
 			expectedKey: "",
 		},
 		{
 			name: "module only",
-			config: Config{
-				Client: client,
-				Module: "buf.build/foo/bar",
-				Cache:  &fakeCache{},
+			config: SchemaWatcherConfig{
+				SchemaPoller: NewSchemaPoller(client, "buf.build/foo/bar", ""),
+				Cache:        &fakeCache{},
 			},
 			expectedKey: "buf.build/foo/bar",
 		},
 		{
 			name: "module and version",
-			config: Config{
-				Client:  client,
-				Module:  "buf.build/foo/bar",
-				Version: "blah",
-				Cache:   &fakeCache{},
+			config: SchemaWatcherConfig{
+				SchemaPoller: NewSchemaPoller(client, "buf.build/foo/bar", "blah"),
+				Cache:        &fakeCache{},
 			},
-			expectedKey: "buf.build/foo/bar@blah",
+			expectedKey: "buf.build/foo/bar:blah",
 		},
 		{
 			name: "module and symbol",
-			config: Config{
-				Client:         client,
-				Module:         "buf.build/foo/bar",
+			config: SchemaWatcherConfig{
+				SchemaPoller:   NewSchemaPoller(client, "buf.build/foo/bar", ""),
 				IncludeSymbols: []string{"foo.Bar"},
 				Cache:          &fakeCache{},
 			},
@@ -143,9 +125,8 @@ func TestNewSchemaWatcher_cacheKey(t *testing.T) {
 		},
 		{
 			name: "module and symbols",
-			config: Config{
-				Client:         client,
-				Module:         "buf.build/foo/bar",
+			config: SchemaWatcherConfig{
+				SchemaPoller:   NewSchemaPoller(client, "buf.build/foo/bar", ""),
 				IncludeSymbols: []string{"frob.Nitz", "gyzmeaux.Thing", "" /* unnamed package */, "foo.Bar"},
 				Cache:          &fakeCache{},
 			},
@@ -153,14 +134,12 @@ func TestNewSchemaWatcher_cacheKey(t *testing.T) {
 		},
 		{
 			name: "module, version, and symbol",
-			config: Config{
-				Client:         client,
-				Module:         "buf.build/foo/bar",
-				Version:        "blah",
+			config: SchemaWatcherConfig{
+				SchemaPoller:   NewSchemaPoller(client, "buf.build/foo/bar", "blah"),
 				IncludeSymbols: []string{"foo.Bar"},
 				Cache:          &fakeCache{},
 			},
-			expectedKey: "buf.build/foo/bar@blah;foo.Bar",
+			expectedKey: "buf.build/foo/bar:blah;foo.Bar",
 		},
 	}
 	for _, testCase := range testCases {
@@ -175,11 +154,12 @@ func TestNewSchemaWatcher_cacheKey(t *testing.T) {
 func TestSchemaWatcher_getFileDescriptorSet(t *testing.T) {
 	t.Parallel()
 	s := &SchemaWatcher{
-		poller: NewDescriptorPoller(newFakeFileDescriptorSetService(), "", ""),
+		poller: NewSchemaPoller(newFakeFileDescriptorSetService(), "", ""),
 	}
-	got, _, err := s.getFileDescriptorSet(context.Background())
+	got, version, _, err := s.getFileDescriptorSet(context.Background(), false)
 	require.NoError(t, err)
 	require.NotNil(t, got)
+	require.NotEmpty(t, version)
 }
 
 func TestSchemaWatcher_FindExtensionByName(t *testing.T) {
@@ -256,12 +236,12 @@ func TestSchemaWatcher_updateResolver(t *testing.T) {
 		require.NoError(t, err)
 
 		schemaWatcher := &SchemaWatcher{
-			poller:   NewDescriptorPoller(newFakeFileDescriptorSetService(), "", ""),
+			poller:   NewSchemaPoller(newFakeFileDescriptorSetService(), "", ""),
 			resolver: resolver,
 		}
 		_, err = schemaWatcher.resolver.FindMessageByName("foo.bar.Message")
 		require.Error(t, err, "not found")
-		require.NoError(t, schemaWatcher.updateResolver(context.Background()))
+		require.NoError(t, schemaWatcher.updateResolver(context.Background(), false))
 		got, err := schemaWatcher.resolver.FindMessageByName("foo.bar.Message")
 		require.NoError(t, err)
 		assert.Equal(t, "foo.bar.Message", string(got.Descriptor().FullName()))
@@ -269,15 +249,15 @@ func TestSchemaWatcher_updateResolver(t *testing.T) {
 	t.Run("updateResolver fails", func(t *testing.T) {
 		t.Parallel()
 		schemaWatcher := &SchemaWatcher{
-			poller: NewDescriptorPoller(&fakeFileDescriptorSetService{
+			poller: NewSchemaPoller(&fakeFileDescriptorSetService{
 				getFileDescriptorSetFunc: func(context.Context, *connect.Request[reflectv1beta1.GetFileDescriptorSetRequest]) (*connect.Response[reflectv1beta1.GetFileDescriptorSetResponse], error) {
 					return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("foo"))
 				},
 			}, "", ""),
 		}
-		err := schemaWatcher.updateResolver(context.Background())
+		err := schemaWatcher.updateResolver(context.Background(), false)
 		require.Error(t, err)
-		assert.EqualError(t, err, "failed to get schema from remote: internal: foo")
+		assert.EqualError(t, err, "failed to fetch schema: internal: foo")
 	})
 	t.Run("updateResolver fails", func(t *testing.T) {
 		t.Parallel()
@@ -287,7 +267,7 @@ func TestSchemaWatcher_updateResolver(t *testing.T) {
 			},
 		}
 		schemaWatcher := &SchemaWatcher{
-			poller: NewDescriptorPoller(&fakeFileDescriptorSetService{
+			poller: NewSchemaPoller(&fakeFileDescriptorSetService{
 				getFileDescriptorSetFunc: func(context.Context, *connect.Request[reflectv1beta1.GetFileDescriptorSetRequest]) (*connect.Response[reflectv1beta1.GetFileDescriptorSetResponse], error) {
 					return connect.NewResponse(&reflectv1beta1.GetFileDescriptorSetResponse{
 						FileDescriptorSet: emptySchema,
@@ -295,7 +275,7 @@ func TestSchemaWatcher_updateResolver(t *testing.T) {
 				},
 			}, "", ""),
 		}
-		err := schemaWatcher.updateResolver(context.Background())
+		err := schemaWatcher.updateResolver(context.Background(), false)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "unable to create resolver from schema:")
 	})
@@ -338,7 +318,9 @@ func TestSchemaWatcher_AwaitReady(t *testing.T) {
 		}
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		sw, err := NewSchemaWatcher(ctx, &Config{Client: svc, Module: "foo/bar"})
+		sw, err := NewSchemaWatcher(ctx, &SchemaWatcherConfig{
+			SchemaPoller: NewSchemaPoller(svc, "foo/bar", ""),
+		})
 		require.NoError(t, err)
 
 		timeoutCtx, cancel := context.WithTimeout(ctx, 500*time.Millisecond)
@@ -372,7 +354,10 @@ func TestSchemaWatcher_AwaitReady(t *testing.T) {
 		}
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		sw, err := NewSchemaWatcher(ctx, &Config{Client: svc, Module: "foo/bar", PollingPeriod: 100 * time.Millisecond})
+		sw, err := NewSchemaWatcher(ctx, &SchemaWatcherConfig{
+			SchemaPoller:  NewSchemaPoller(svc, "foo/bar", ""),
+			PollingPeriod: 100 * time.Millisecond,
+		})
 		require.NoError(t, err)
 
 		timeoutCtx, cancel := context.WithTimeout(ctx, 500*time.Millisecond)
@@ -405,7 +390,9 @@ func TestSchemaWatcher_AwaitReady(t *testing.T) {
 		}
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		sw, err := NewSchemaWatcher(ctx, &Config{Client: brokenService, Module: "foo/bar"})
+		sw, err := NewSchemaWatcher(ctx, &SchemaWatcherConfig{
+			SchemaPoller: NewSchemaPoller(brokenService, "foo/bar", ""),
+		})
 		require.NoError(t, err)
 		sw.Stop()
 		err = sw.AwaitReady(ctx)
@@ -435,7 +422,10 @@ func TestSchemaWatcher_UsingCache(t *testing.T) {
 			},
 		}
 
-		sw, err := NewSchemaWatcher(ctx, &Config{Client: brokenService, Module: "foo/bar", Version: "main", Cache: cache})
+		sw, err := NewSchemaWatcher(ctx, &SchemaWatcherConfig{
+			SchemaPoller: NewSchemaPoller(brokenService, "foo/bar", "main"),
+			Cache:        cache,
+		})
 		require.NoError(t, err)
 
 		select {
@@ -445,7 +435,7 @@ func TestSchemaWatcher_UsingCache(t *testing.T) {
 		}
 		loads := cache.getLoadCalls()
 		require.GreaterOrEqual(t, len(loads), 1) // racing w/ retry so could be >1
-		require.Equal(t, loads[0].key, "foo/bar@main")
+		require.Equal(t, "foo/bar:main", loads[0].key)
 		saves := cache.getSaveCalls()
 		require.Equal(t, 0, len(saves))
 
@@ -471,10 +461,13 @@ func TestSchemaWatcher_UsingCache(t *testing.T) {
 			},
 			ts)
 		require.NoError(t, err)
-		err = cache.Save("foo/bar@main", data)
+		err = cache.Save(ctx, "foo/bar:main", data)
 		require.NoError(t, err)
 
-		sw, err := NewSchemaWatcher(ctx, &Config{Client: brokenService, Module: "foo/bar", Version: "main", Cache: cache})
+		sw, err := NewSchemaWatcher(ctx, &SchemaWatcherConfig{
+			SchemaPoller: NewSchemaPoller(brokenService, "foo/bar", "main"),
+			Cache:        cache,
+		})
 		require.NoError(t, err)
 
 		readyCtx, cancel := context.WithTimeout(ctx, time.Second)
@@ -483,7 +476,7 @@ func TestSchemaWatcher_UsingCache(t *testing.T) {
 		require.NoError(t, err)
 		loads := cache.getLoadCalls()
 		require.Equal(t, 1, len(loads))
-		require.Equal(t, loads[0].key, "foo/bar@main")
+		require.Equal(t, "foo/bar:main", loads[0].key)
 		saves := cache.getSaveCalls()
 		require.Equal(t, 1, len(saves)) // just one call to seed cache above
 
@@ -508,7 +501,10 @@ func TestSchemaWatcher_UsingCache(t *testing.T) {
 		}
 
 		ts := time.Now()
-		sw, err := NewSchemaWatcher(ctx, &Config{Client: newFakeFileDescriptorSetService(), Module: "foo/bar", Version: "main", Cache: cache})
+		sw, err := NewSchemaWatcher(ctx, &SchemaWatcherConfig{
+			SchemaPoller: NewSchemaPoller(newFakeFileDescriptorSetService(), "foo/bar", "main"),
+			Cache:        cache,
+		})
 		require.NoError(t, err)
 
 		select {
@@ -549,10 +545,6 @@ func newFakeFileDescriptorSetService() *fakeFileDescriptorSetService {
 			}), nil
 		},
 	}
-}
-
-func newFakeDescriptorPoller() DescriptorPoller {
-	return NewDescriptorPoller(newFakeFileDescriptorSetService(), "", "")
 }
 
 func fakeFileDescriptorSet() *descriptorpb.FileDescriptorSet {
@@ -679,7 +671,7 @@ type fakeCache struct {
 	saveHook func()
 }
 
-func (f *fakeCache) Load(key string) ([]byte, error) {
+func (f *fakeCache) Load(_ context.Context, key string) ([]byte, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
@@ -706,7 +698,7 @@ func (f *fakeCache) Load(key string) ([]byte, error) {
 	return data, err
 }
 
-func (f *fakeCache) Save(key string, data []byte) error {
+func (f *fakeCache) Save(_ context.Context, key string, data []byte) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 

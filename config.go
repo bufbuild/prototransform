@@ -33,75 +33,16 @@ import (
 const defaultPollingPeriod = 5 * time.Minute
 
 var (
-	// ErrSchemaNotModified is an error that may be returned by a DescriptorPoller to
+	// ErrSchemaNotModified is an error that may be returned by a SchemaPoller to
 	// indicate that the poller did not return any descriptors because the caller's
 	// cached version is still sufficiently fresh.
 	ErrSchemaNotModified = errors.New("no response because schema not modified")
 )
 
-// Config contains the configurable attributes of the [SchemaWatcher].
-//
-// Deprecated: Use SchemaWatcherConfig instead.
-type Config struct {
-	// Client is a client for the reflectv1beta1connect.FileDescriptorSetServiceClient service.
-	Client reflectv1beta1connect.FileDescriptorSetServiceClient
-	// Module which uniquely identifies and gives ownership to a collection of Protobuf
-	// files found on the Buf Schema Registry. Owner is an entity that is
-	// either a user or organization within the BSR ecosystem. Repository
-	// stores all versions of a single module
-	Module string
-	// Version includes any number of changes, and each change is identifiable by a
-	// unique commit, tag, or draft. (Optional, default: main)
-	Version string
-	// The symbols that should be included in the downloaded schema. These must be
-	// the fully-qualified names of elements in the schema, which can include
-	// packages, messages, enums, extensions, services, and methods. If specified,
-	// the downloaded schema will only include descriptors to describe these symbols.
-	// If left empty, the entire schema will be downloaded.
-	IncludeSymbols []string
-	// The period of the polling the BSR for new versions is specified by the
-	// PollingPeriod argument. The PollingPeriod will adjust the time interval.
-	// The duration must be greater than zero; if not, [NewSchemaWatcher] will
-	// return an error. If unset and left zero, a default period of 5 minutes
-	// is used.
-	PollingPeriod time.Duration
-	// If Cache is non-nil, it is used for increased robustness, even in the
-	// face of the remote schema registry being unavailable. If non-nil and the
-	// API call to initially retrieve a schema fails, the schema will instead
-	// be loaded from this cache. Whenever a new schema is downloaded from the
-	// remote registry, it will be saved to the cache. So if the process is
-	// restarted and the remote registry is unavailable, the latest cached schema
-	// can still be used.
-	Cache Cache
-}
-
-func (c *Config) validate() (*SchemaWatcherConfig, error) {
-	if c.Client == nil {
-		return nil, fmt.Errorf("schema service client not provided")
-	}
-	if c.Module == "" {
-		return nil, fmt.Errorf("buf module not provided")
-	}
-	var cacheKeyPrefix string
-	if c.Cache != nil {
-		cacheKeyPrefix = c.Module
-		if c.Version != "" {
-			cacheKeyPrefix += "@" + c.Version
-		}
-	}
-	return &SchemaWatcherConfig{
-		DescriptorPoller: NewDescriptorPoller(c.Client, c.Module, c.Version),
-		IncludeSymbols:   c.IncludeSymbols,
-		PollingPeriod:    c.PollingPeriod,
-		Cache:            c.Cache,
-		CacheKeyPrefix:   cacheKeyPrefix,
-	}, nil
-}
-
 // SchemaWatcherConfig contains the configurable attributes of the [SchemaWatcher].
 type SchemaWatcherConfig struct {
-	// The downloader of descriptors. See [NewDescriptorPoller].
-	DescriptorPoller DescriptorPoller
+	// The downloader of descriptors. See [NewSchemaPoller].
+	SchemaPoller SchemaPoller
 	// The symbols that should be included in the downloaded schema. These must be
 	// the fully-qualified names of elements in the schema, which can include
 	// packages, messages, enums, extensions, services, and methods. If specified,
@@ -122,22 +63,19 @@ type SchemaWatcherConfig struct {
 	// restarted and the remote registry is unavailable, the latest cached schema
 	// can still be used.
 	Cache Cache
-	// CacheKeyPrefix is the prefix used for a cache key, when loading or storing
-	// descriptors in Cache. Any symbols requested will be canonicalized and then
-	// appended to this key. If Cache is non-nil, this must be non-empty. It is up
-	// to the Cache to sanitize the key if necessary.
-	CacheKeyPrefix string
+	// OnUpdate is an optional callback that will be invoked when a schema is
+	// fetched. This can be used by an application to take action when a new
+	// schema becomes available. It is possible that the previous and newly
+	// fetched schema are the same.
+	OnUpdate func()
 }
 
 func (c *SchemaWatcherConfig) validate() error {
-	if c.DescriptorPoller == nil {
-		return fmt.Errorf("descriptor poller not provided")
+	if c.SchemaPoller == nil {
+		return fmt.Errorf("schema poller not provided")
 	}
 	if c.PollingPeriod < 0 {
 		return fmt.Errorf("polling period duration cannot be negative")
-	}
-	if c.Cache != nil && c.CacheKeyPrefix == "" {
-		return fmt.Errorf("cache key prefix cannot be blank if cache is non-nil")
 	}
 	for _, sym := range c.IncludeSymbols {
 		if sym == "" {
@@ -153,18 +91,22 @@ func (c *SchemaWatcherConfig) validate() error {
 	return nil
 }
 
-// DescriptorPoller polls for descriptors from a remote source.
-// See [NewDescriptorPoller].
-//
-// Implementations should return ErrSchemaNotModified if there is no
-// result to download because the given cachedVersion is still valid.
-// The given cachedVersion will be blank when there is no version
-// cached, in which case the poller should NOT return that error.
-type DescriptorPoller interface {
-	GetFileDescriptorSet(ctx context.Context, symbols []string, cachedVersion string) (descriptors *descriptorpb.FileDescriptorSet, version string, err error)
+// SchemaPoller polls for descriptors from a remote source.
+// See [NewSchemaPoller].
+type SchemaPoller interface {
+	// GetSchema polls for a schema. The given symbols may be used to filter
+	// the schema to return a smaller result. The given currentVersion, if not
+	// empty, indicates the version that the caller already has fetched and
+	// cached. So if that is still the current version of the schema (nothing
+	// newer to download), the implementation may return an ErrSchemaNotModified
+	// error.
+	GetSchema(ctx context.Context, symbols []string, currentVersion string) (descriptors *descriptorpb.FileDescriptorSet, version string, err error)
+	// GetSchemaID returns a string that identifies the schema that it fetches.
+	// For a BSR module, for example, this might be "buf.build/owner/module:version".
+	GetSchemaID() string
 }
 
-// NewDescriptorPoller returns a DescriptorPoller that uses the given Buf Reflection
+// NewSchemaPoller returns a SchemaPoller that uses the given Buf Reflection
 // API client to download descriptors for the given module. If the given version is
 // non-empty, the descriptors will be downloaded from that version of the module.
 //
@@ -174,11 +116,11 @@ type DescriptorPoller interface {
 //
 // To create a client that can download descriptors from the buf.build public BSR,
 // see [NewDefaultFileDescriptorSetServiceClient].
-func NewDescriptorPoller(
+func NewSchemaPoller(
 	client reflectv1beta1connect.FileDescriptorSetServiceClient,
 	module string,
 	version string,
-) DescriptorPoller {
+) SchemaPoller {
 	return &bufReflectPoller{
 		client:  client,
 		module:  module,
@@ -191,7 +133,7 @@ type bufReflectPoller struct {
 	module, version string
 }
 
-func (b *bufReflectPoller) GetFileDescriptorSet(ctx context.Context, symbols []string, _ string) (*descriptorpb.FileDescriptorSet, string, error) {
+func (b *bufReflectPoller) GetSchema(ctx context.Context, symbols []string, _ string) (*descriptorpb.FileDescriptorSet, string, error) {
 	req := connect.NewRequest(&reflectv1beta1.GetFileDescriptorSetRequest{
 		Module:  b.module,
 		Version: b.version,
@@ -202,6 +144,13 @@ func (b *bufReflectPoller) GetFileDescriptorSet(ctx context.Context, symbols []s
 		return nil, "", err
 	}
 	return resp.Msg.FileDescriptorSet, resp.Msg.Version, err
+}
+
+func (b *bufReflectPoller) GetSchemaID() string {
+	if b.version == "" {
+		return b.module
+	}
+	return b.module + ":" + b.version
 }
 
 // NewDefaultFileDescriptorSetServiceClient will create an authenticated connection to the

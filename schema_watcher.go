@@ -21,7 +21,6 @@ import (
 	"sort"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"buf.build/gen/go/bufbuild/reflect/protocolbuffers/go/buf/reflect/v1beta1"
@@ -47,20 +46,23 @@ var (
 // schema. As schema changes are pushed to the remote registry, the watcher
 // will incorporate the changes by downloading each change via regular polling.
 type SchemaWatcher struct {
-	poller         DescriptorPoller
+	poller         SchemaPoller
+	schemaID       string
 	includeSymbols []string
 	cacheKey       string
-
-	cachedVersion atomic.Value
 
 	// used to prevent concurrent calls to cache.Save, which could
 	// otherwise potentially result in a known-stale value in the cache.
 	cacheMu sync.Mutex
 	cache   Cache
 
-	resolverMu  sync.RWMutex
-	resolver    Resolver
-	resolveTime time.Time
+	callbackMu sync.Mutex
+	callback   func()
+
+	resolverMu      sync.RWMutex
+	resolver        Resolver
+	resolveTime     time.Time
+	resolvedVersion string
 	// if nil, watcher has been stopped; if not nil, will be called
 	// when watcher is stopped
 	stop context.CancelFunc
@@ -71,43 +73,14 @@ type SchemaWatcher struct {
 	resolverErr error
 }
 
-// NewSchemaWatcher creates a new [SchemaWatcher] for the given [Config].
-//
-// [Config] is first validated to ensure all required attributes are provided. A
-// non-nil error is returned if the configuration is not valid.
-//
-// If the configuration is valid, a [SchemaWatcher] is returned, and the configured
-// FileDescriptorSetService client is used to download a schema. The schema will
-// then be periodically re-downloaded based on the configured polling period.
-// Either the Stop() method of the [SchemaWatcher] must be called or the given ctx
-// must be cancelled to release resources and stop the periodic re-download.
-//
-// This function returns immediately, even before a schema has been initially
-// downloaded. If the Find* methods on the returned watcher are called before an
-// initial schema has been downloaded, they will return ErrSchemaWatcherNotReady.
-// Use the AwaitReady method to make sure the watcher is ready before use.
-//
-// If the Stop() method is called or the given ctx is cancelled, polling for an
-// updated schema aborts. The SchemaWatcher may still be used after this, but it
-// will be "frozen" using its last downloaded schema.
-//
-// Deprecated: Use NewSchemaWatcherFromConfig instead.
-func NewSchemaWatcher(ctx context.Context, config *Config) (*SchemaWatcher, error) {
-	schemaWatcherConf, err := config.validate()
-	if err != nil {
-		return nil, err
-	}
-	return NewSchemaWatcherFromConfig(ctx, schemaWatcherConf)
-}
-
-// NewSchemaWatcherFromConfig creates a new [SchemaWatcher] for the given
+// NewSchemaWatcher creates a new [SchemaWatcher] for the given
 // [SchemaWatcherConfig].
 //
 // The config is first validated to ensure all required attributes are provided.
 // A non-nil error is returned if the configuration is not valid.
 //
 // If the configuration is valid, a [SchemaWatcher] is returned, and the configured
-// DescriptorPoller is used to download a schema. The schema will then be periodically
+// SchemaPoller is used to download a schema. The schema will then be periodically
 // re-fetched based on the configured polling period. Either the Stop() method of the
 // [SchemaWatcher] must be called or the given ctx must be cancelled to release
 // resources and stop the periodic polling.
@@ -123,7 +96,7 @@ func NewSchemaWatcher(ctx context.Context, config *Config) (*SchemaWatcher, erro
 // this, but it will be "frozen" using its most recently downloaded schema. If no
 // schema was ever successfully downloaded, it will be frozen in a bad state and
 // methods will return ErrSchemaWatcherNotReady.
-func NewSchemaWatcherFromConfig(ctx context.Context, config *SchemaWatcherConfig) (*SchemaWatcher, error) {
+func NewSchemaWatcher(ctx context.Context, config *SchemaWatcherConfig) (*SchemaWatcher, error) {
 	if err := config.validate(); err != nil {
 		return nil, err
 	}
@@ -142,11 +115,12 @@ func NewSchemaWatcherFromConfig(ctx context.Context, config *SchemaWatcherConfig
 		syms = append(syms, sym)
 	}
 	sort.Strings(syms)
+	schemaID := config.SchemaPoller.GetSchemaID()
 
 	// compute cache key
 	var cacheKey string
 	if config.Cache != nil {
-		cacheKey = config.CacheKeyPrefix
+		cacheKey = schemaID
 		if len(syms) > 0 {
 			cacheKey += ";" + strings.Join(syms, ",")
 		}
@@ -154,9 +128,11 @@ func NewSchemaWatcherFromConfig(ctx context.Context, config *SchemaWatcherConfig
 
 	ctx, cancel := context.WithCancel(ctx)
 	schemaWatcher := &SchemaWatcher{
-		poller:         config.DescriptorPoller,
+		poller:         config.SchemaPoller,
+		schemaID:       schemaID,
 		includeSymbols: syms,
 		cacheKey:       cacheKey,
+		callback:       config.OnUpdate,
 		cache:          config.Cache,
 		stop:           cancel,
 		resolverReady:  make(chan struct{}),
@@ -171,10 +147,10 @@ func (s *SchemaWatcher) getResolver() Resolver {
 	return s.resolver
 }
 
-func (s *SchemaWatcher) updateResolver(ctx context.Context) error {
-	schema, schemaTs, err := s.getFileDescriptorSet(ctx)
+func (s *SchemaWatcher) updateResolver(ctx context.Context, fallbackToCache bool) error {
+	schema, schemaVersion, schemaTs, err := s.getFileDescriptorSet(ctx, fallbackToCache)
 	if err != nil {
-		return fmt.Errorf("failed to get schema from remote: %w", err)
+		return fmt.Errorf("failed to fetch schema: %w", err)
 	}
 	resolver, err := newResolver(schema)
 	if err != nil {
@@ -191,6 +167,7 @@ func (s *SchemaWatcher) updateResolver(ctx context.Context) error {
 	s.resolver = resolver
 	s.resolveTime = schemaTs
 	s.resolverErr = nil
+	s.resolvedVersion = schemaVersion
 	return nil
 }
 
@@ -207,7 +184,7 @@ func (s *SchemaWatcher) initialUpdateResolver(ctx context.Context, pollingPeriod
 
 	var delay time.Duration
 	for {
-		err := s.updateResolver(ctx)
+		err := s.updateResolver(ctx, true)
 		if err == nil {
 			// success!
 			return true
@@ -246,9 +223,9 @@ func (s *SchemaWatcher) initialUpdateResolver(ctx context.Context, pollingPeriod
 // download the schema. It will keep trying/polling until s.Stop is called or
 // until the context passed to [NewSchemaWatcher] is cancelled.
 func (s *SchemaWatcher) AwaitReady(ctx context.Context) error {
-	s.resolverMu.Lock()
+	s.resolverMu.RLock()
 	ready, stop := s.resolverReady, s.stop
-	s.resolverMu.Unlock()
+	s.resolverMu.RUnlock()
 	if ready == nil {
 		if stop == nil {
 			return ErrSchemaWatcherStopped
@@ -257,17 +234,17 @@ func (s *SchemaWatcher) AwaitReady(ctx context.Context) error {
 	}
 	select {
 	case <-ready:
-		s.resolverMu.Lock()
+		s.resolverMu.RLock()
 		stop = s.stop
-		s.resolverMu.Unlock()
+		s.resolverMu.RUnlock()
 		if stop == nil {
 			return ErrSchemaWatcherStopped
 		}
 		return nil
 	case <-ctx.Done():
-		s.resolverMu.Lock()
+		s.resolverMu.RLock()
 		err := s.resolverErr
-		s.resolverMu.Unlock()
+		s.resolverMu.RUnlock()
 		if err != nil {
 			return err
 		}
@@ -286,8 +263,8 @@ func (s *SchemaWatcher) AwaitReady(ctx context.Context) error {
 // are occurring, the maximum age will up to the configured polling period plus
 // the latency of the RPC to the remote registry.
 func (s *SchemaWatcher) LastResolved() (bool, time.Time) {
-	s.resolverMu.Lock()
-	defer s.resolverMu.Unlock()
+	s.resolverMu.RLock()
+	defer s.resolverMu.RUnlock()
 	if s.resolver == nil {
 		return false, time.Time{}
 	}
@@ -359,7 +336,7 @@ func (s *SchemaWatcher) start(ctx context.Context, pollingPeriod time.Duration) 
 					// don't bother fetching a schema if context is done
 					return
 				}
-				_ = s.updateResolver(ctx)
+				_ = s.updateResolver(ctx, false)
 			case <-ctx.Done():
 				return
 			}
@@ -379,30 +356,43 @@ func (s *SchemaWatcher) Stop() {
 }
 
 func (s *SchemaWatcher) IsStopped() bool {
-	s.resolverMu.Lock()
-	defer s.resolverMu.Unlock()
+	s.resolverMu.RLock()
+	defer s.resolverMu.RUnlock()
 	return s.stop == nil
 }
 
-func (s *SchemaWatcher) getFileDescriptorSet(ctx context.Context) (*descriptorpb.FileDescriptorSet, time.Time, error) {
-	cachedVersion, _ := s.cachedVersion.Load().(string)
-	descriptors, version, err := s.poller.GetFileDescriptorSet(ctx, s.includeSymbols, cachedVersion)
+func (s *SchemaWatcher) getFileDescriptorSet(ctx context.Context, fallbackToCache bool) (*descriptorpb.FileDescriptorSet, string, time.Time, error) {
+	s.resolverMu.RLock()
+	currentVersion := s.resolvedVersion
+	s.resolverMu.RUnlock()
+	descriptors, version, err := s.poller.GetSchema(ctx, s.includeSymbols, currentVersion)
 	respTime := time.Now()
 
 	if err != nil {
-		if errors.Is(err, ErrSchemaNotModified) || s.cache == nil {
-			return nil, time.Time{}, err
+		if errors.Is(err, ErrSchemaNotModified) || s.cache == nil || !fallbackToCache {
+			return nil, "", time.Time{}, err
 		}
-		data, cacheErr := s.cache.Load(s.cacheKey)
+		// try to fallback to cache
+		data, cacheErr := s.cache.Load(ctx, s.cacheKey)
 		if cacheErr != nil {
-			return nil, time.Time{}, fmt.Errorf("%w (failed to load from cache: %v)", err, cacheErr)
+			return nil, "", time.Time{}, fmt.Errorf("%w (failed to load from cache: %v)", err, cacheErr)
 		}
 		msg, ts, cacheErr := decodeForCache(data)
 		if cacheErr != nil {
-			return nil, time.Time{}, fmt.Errorf("%w (failed to decode cached value: %v)", err, cacheErr)
+			return nil, "", time.Time{}, fmt.Errorf("%w (failed to decode cached value: %v)", err, cacheErr)
 		}
-		return msg.FileDescriptorSet, ts, nil
-	} else if s.cache != nil {
+		return msg.FileDescriptorSet, msg.Version, ts, nil
+	}
+	if s.callback != nil {
+		go func() {
+			// Lock forces sequential calls to callback and also
+			// means callback does not need to be thread-safe.
+			s.callbackMu.Lock()
+			defer s.callbackMu.Unlock()
+			s.callback()
+		}()
+	}
+	if s.cache != nil {
 		go func() {
 			data, err := encodeForCache(&reflectv1beta1.GetFileDescriptorSetResponse{
 				FileDescriptorSet: descriptors,
@@ -420,17 +410,15 @@ func (s *SchemaWatcher) getFileDescriptorSet(ctx context.Context) (*descriptorpb
 			// earlier call to Save actually succeeds last.
 			s.cacheMu.Lock()
 			defer s.cacheMu.Unlock()
-			// We don't do anything on error since there's nothing we
-			// can realistically do. User code could wrap a cache
-			// implementation and observe the error, in order to
-			// possibly take action (like write a log message or update
-			// a counter metric, etc).
-			if err := s.cache.Save(s.cacheKey, data); err == nil {
-				s.cachedVersion.Store(version)
-			}
+			// We ignore the error since there's nothing we can do.
+			// But keeping it in the interface signature means that
+			// user code can wrap a cache implementation and observe
+			// the error, in order to possibly take action (like write
+			// a log message or update a counter metric, etc).
+			_ = s.cache.Save(ctx, s.cacheKey, data)
 		}()
 	}
-	return descriptors, respTime, nil
+	return descriptors, version, respTime, nil
 }
 
 // newResolver creates a new Resolver.

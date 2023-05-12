@@ -40,10 +40,12 @@ func Example() {
 	// Supply auth credentials to the BSR
 	client := NewDefaultFileDescriptorSetServiceClient(token)
 	// Configure the module for schema watcher
-	cfg := &Config{
-		Client:  client,
-		Module:  "buf.build/bufbuild/eliza", // BSR module
-		Version: "main",                     // tag or draft name or leave blank for "latest"
+	cfg := &SchemaWatcherConfig{
+		SchemaPoller: NewSchemaPoller(
+			client,
+			"buf.build/bufbuild/eliza", // BSR module
+			"main",                     // tag or draft name or leave blank for "latest"
+		),
 	}
 	ctx := context.Background()
 	schemaWatcher, err := NewSchemaWatcher(ctx, cfg)
