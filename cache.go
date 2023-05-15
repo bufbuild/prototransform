@@ -15,6 +15,7 @@
 package prototransform
 
 import (
+	"context"
 	"time"
 
 	reflectv1beta1 "buf.build/gen/go/bufbuild/reflect/protocolbuffers/go/buf/reflect/v1beta1"
@@ -30,8 +31,8 @@ import (
 // the cache. Cache can be used from multiple goroutines and thus must be
 // thread-safe.
 type Cache interface {
-	Load(key string) ([]byte, error)
-	Save(key string, data []byte) error
+	Load(ctx context.Context, key string) ([]byte, error)
+	Save(ctx context.Context, key string, data []byte) error
 }
 
 func encodeForCache(resp *reflectv1beta1.GetFileDescriptorSetResponse, respTime time.Time) ([]byte, error) {
