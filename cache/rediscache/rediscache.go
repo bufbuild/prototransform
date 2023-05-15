@@ -53,17 +53,10 @@ func (c *cache) Load(ctx context.Context, key string) ([]byte, error) {
 	defer func() {
 		_ = conn.Close()
 	}()
-
-	var reply any
 	if connCtx, ok := conn.(redis.ConnWithContext); ok {
-		reply, err = connCtx.DoContext(ctx, "get", c.KeyPrefix+key)
-	} else {
-		reply, err = conn.Do("get", c.KeyPrefix+key)
+		return redis.Bytes(connCtx.DoContext(ctx, "get", c.KeyPrefix+key))
 	}
-	if err != nil {
-		return nil, err
-	}
-	return replyToBytes(reply)
+	return redis.Bytes(conn.Do("get", c.KeyPrefix+key))
 }
 
 func (c *cache) Save(ctx context.Context, key string, data []byte) error {
@@ -88,15 +81,4 @@ func (c *cache) Save(ctx context.Context, key string, data []byte) error {
 		_, err = conn.Do("set", args...)
 	}
 	return err
-}
-
-func replyToBytes(reply any) ([]byte, error) {
-	switch reply := reply.(type) {
-	case []byte:
-		return reply, nil
-	case string:
-		return []byte(reply), nil
-	default:
-		return nil, fmt.Errorf("unexpected type of reply from redis: %T", reply)
-	}
 }

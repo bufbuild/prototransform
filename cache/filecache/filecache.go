@@ -24,6 +24,7 @@ package filecache
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -129,13 +130,21 @@ func (c *cache) fileNameForKey(key string) string {
 
 func sanitize(s string) string {
 	var sb strings.Builder
-	for _, r := range s {
-		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') ||
-			(r >= '0' && r <= '9') || r == '.' || r == '-' || r == '_' {
-			sb.WriteRune(r)
-			continue
+	hexWriter := hex.NewEncoder(&sb)
+	var buf [1]byte
+	for i, length := 0, len(s); i < length; i++ {
+		b := s[i]
+		switch {
+		case b >= 'a' && b <= 'z',
+			b >= 'A' && b <= 'Z',
+			b >= '0' && b <= '9',
+			b == '.' || b == '-' || b == '_':
+			sb.WriteByte(b)
+		default:
+			sb.WriteByte('%')
+			buf[0] = b
+			_, _ = hexWriter.Write(buf[:])
 		}
-		sb.WriteRune('_')
 	}
 	return sb.String()
 }

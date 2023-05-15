@@ -79,9 +79,7 @@ func TestRedisCache(t *testing.T) {
 
 func checkKeys(t *testing.T, client redis.Conn, keyPrefix string, ttl time.Duration, entries map[string][]byte) {
 	for k, v := range entries {
-		reply, err := client.Do("get", keyPrefix+k)
-		require.NoError(t, err)
-		data, err := replyToBytes(reply)
+		data, err := redis.Bytes(client.Do("get", keyPrefix+k))
 		require.NoError(t, err)
 		require.Equal(t, v, data)
 		if ttl != 0 {

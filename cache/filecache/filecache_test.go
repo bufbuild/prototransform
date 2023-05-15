@@ -127,8 +127,46 @@ func TestFileCache_ConfigValidation(t *testing.T) {
 	for _, testCase := range testCases {
 		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
 			_, err := New(testCase.config)
 			require.ErrorContains(t, err, testCase.expectErr)
+		})
+	}
+}
+
+func TestSanitize(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		key       string
+		sanitized string
+	}{
+		{
+			key:       "only-valid-chars",
+			sanitized: "only-valid-chars",
+		},
+		{
+			key:       "buf.build/foo/bar:draft-abc_23489abcf123400de",
+			sanitized: "buf.build%2ffoo%2fbar%3adraft-abc_23489abcf123400de",
+		},
+		{
+			key:       "has whitespace",
+			sanitized: "has%20whitespace",
+		},
+		{
+			key:       "other &!@#$ funny chars!",
+			sanitized: "other%20%26%21%40%23%24%20funny%20chars%21",
+		},
+		{
+			key:       "even unicode!! ↩ ↯ ψ 𝄞 😍 🌍",
+			sanitized: "even%20unicode%21%21%20%e2%86%a9%20%e2%86%af%20%cf%88%20%f0%9d%84%9e%20%f0%9f%98%8d%20%f0%9f%8c%8d",
+		},
+	}
+	for _, testCase := range testCases {
+		testCase := testCase
+		t.Run(testCase.key, func(t *testing.T) {
+			t.Parallel()
+			val := sanitize(testCase.key)
+			require.Equal(t, testCase.sanitized, val)
 		})
 	}
 }
