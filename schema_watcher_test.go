@@ -30,7 +30,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/descriptorpb"
 )
 
@@ -164,7 +163,7 @@ func TestSchemaWatcher_getFileDescriptorSet(t *testing.T) {
 
 func TestSchemaWatcher_FindExtensionByName(t *testing.T) {
 	t.Parallel()
-	_, resolver, err := newResolver(fakeFileDescriptorSet())
+	resolver, err := newResolver(fakeFileDescriptorSet())
 	require.NoError(t, err)
 	schemaWatcher := &SchemaWatcher{
 		resolver: resolver,
@@ -176,7 +175,7 @@ func TestSchemaWatcher_FindExtensionByName(t *testing.T) {
 
 func TestSchemaWatcher_FindExtensionByNumber(t *testing.T) {
 	t.Parallel()
-	_, resolver, err := newResolver(fakeFileDescriptorSet())
+	resolver, err := newResolver(fakeFileDescriptorSet())
 	require.NoError(t, err)
 	schemaWatcher := &SchemaWatcher{
 		resolver: resolver,
@@ -188,7 +187,7 @@ func TestSchemaWatcher_FindExtensionByNumber(t *testing.T) {
 
 func TestSchemaWatcher_FindMessageByName(t *testing.T) {
 	t.Parallel()
-	_, resolver, err := newResolver(fakeFileDescriptorSet())
+	resolver, err := newResolver(fakeFileDescriptorSet())
 	require.NoError(t, err)
 	schemaWatcher := &SchemaWatcher{
 		resolver: resolver,
@@ -200,7 +199,7 @@ func TestSchemaWatcher_FindMessageByName(t *testing.T) {
 
 func TestSchemaWatcher_FindMessageByURL(t *testing.T) {
 	t.Parallel()
-	_, resolver, err := newResolver(fakeFileDescriptorSet())
+	resolver, err := newResolver(fakeFileDescriptorSet())
 	require.NoError(t, err)
 	schemaWatcher := &SchemaWatcher{
 		resolver: resolver,
@@ -232,7 +231,7 @@ func TestSchemaWatcher_updateResolver(t *testing.T) {
 				},
 			},
 		}
-		_, resolver, err := newResolver(emptySchema)
+		resolver, err := newResolver(emptySchema)
 		require.NoError(t, err)
 
 		schemaWatcher := &SchemaWatcher{
@@ -629,26 +628,7 @@ func fakeFileDescriptorSet() *descriptorpb.FileDescriptorSet {
 }
 
 type fakeResolver struct {
-	findExtensionByNameFunc   func(field protoreflect.FullName) (protoreflect.ExtensionType, error)
-	findExtensionByNumberFunc func(message protoreflect.FullName, field protoreflect.FieldNumber) (protoreflect.ExtensionType, error)
-	findMessageByNameFunc     func(message protoreflect.FullName) (protoreflect.MessageType, error)
-	findMessageByURLFunc      func(url string) (protoreflect.MessageType, error)
-}
-
-func (f fakeResolver) FindExtensionByName(field protoreflect.FullName) (protoreflect.ExtensionType, error) {
-	return f.findExtensionByNameFunc(field)
-}
-
-func (f fakeResolver) FindExtensionByNumber(message protoreflect.FullName, field protoreflect.FieldNumber) (protoreflect.ExtensionType, error) {
-	return f.findExtensionByNumberFunc(message, field)
-}
-
-func (f fakeResolver) FindMessageByName(message protoreflect.FullName) (protoreflect.MessageType, error) {
-	return f.findMessageByNameFunc(message)
-}
-
-func (f fakeResolver) FindMessageByURL(url string) (protoreflect.MessageType, error) {
-	return f.findMessageByURLFunc(url)
+	resolver
 }
 
 type fakeCacheOp struct {

@@ -27,11 +27,8 @@ import (
 	"time"
 
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/reflect/protodesc"
 	"google.golang.org/protobuf/reflect/protoreflect"
-	"google.golang.org/protobuf/reflect/protoregistry"
 	"google.golang.org/protobuf/types/descriptorpb"
-	"google.golang.org/protobuf/types/dynamicpb"
 )
 
 var (
@@ -65,7 +62,7 @@ type SchemaWatcher struct {
 	errCallback func(error)
 
 	resolverMu      sync.RWMutex
-	resolver        Resolver
+	resolver        resolver
 	resolvedSchema  *descriptorpb.FileDescriptorSet
 	resolveTime     time.Time
 	resolvedVersion string
@@ -162,7 +159,7 @@ func NewSchemaWatcher(ctx context.Context, config *SchemaWatcherConfig) (*Schema
 	return schemaWatcher, nil
 }
 
-func (s *SchemaWatcher) getResolver() Resolver {
+func (s *SchemaWatcher) getResolver() resolver {
 	s.resolverMu.RLock()
 	defer s.resolverMu.RUnlock()
 	return s.resolver
@@ -213,7 +210,7 @@ func (s *SchemaWatcher) updateResolver(ctx context.Context) (err error) {
 		}
 	}
 
-	files, resolver, err := newResolver(schema)
+	resolver, err := newResolver(schema)
 	if err != nil {
 		return fmt.Errorf("unable to create resolver from schema: %w", err)
 	}
@@ -221,7 +218,7 @@ func (s *SchemaWatcher) updateResolver(ctx context.Context) (err error) {
 	if len(s.includeSymbols) > 0 {
 		var missingSymbols []string
 		for _, sym := range s.includeSymbols {
-			_, err := files.FindDescriptorByName(protoreflect.FullName(sym))
+			_, err := resolver.FindDescriptorByName(protoreflect.FullName(sym))
 			if err != nil {
 				missingSymbols = append(missingSymbols, sym)
 			}
@@ -358,6 +355,66 @@ func (s *SchemaWatcher) ResolveNow() {
 	}
 }
 
+// RangeFiles iterates over all registered files while f returns true. The
+// iteration order is undefined.
+//
+// This uses a snapshot of the most recently downloaded schema. So if the
+// schema is updated (via concurrent download) while iterating, f will only
+// see the contents of the older schema.
+//
+// If the s is not yet ready, this will not call f at all and instead immediately
+// return. This does not return an error so that the signature matches the method
+// of the same name of *protoregistry.Files, allowing *SchemaWatcher to provide
+// the same interface.
+func (s *SchemaWatcher) RangeFiles(f func(protoreflect.FileDescriptor) bool) {
+	res := s.getResolver()
+	if res == nil {
+		return
+	}
+	res.RangeFiles(f)
+}
+
+// RangeFilesByPackage iterates over all registered files in a given proto package
+// while f returns true. The iteration order is undefined.
+//
+// This uses a snapshot of the most recently downloaded schema. So if the
+// schema is updated (via concurrent download) while iterating, f will only
+// see the contents of the older schema.
+//
+// If the s is not yet ready, this will not call f at all and instead immediately
+// return. This does not return an error so that the signature matches the method
+// of the same name of *protoregistry.Files, allowing *SchemaWatcher to provide
+// the same interface.
+func (s *SchemaWatcher) RangeFilesByPackage(name protoreflect.FullName, f func(protoreflect.FileDescriptor) bool) {
+	res := s.getResolver()
+	if res == nil {
+		return
+	}
+	res.RangeFilesByPackage(name, f)
+}
+
+// FindFileByPath looks up a file by the path.
+//
+// This uses the most recently downloaded schema.
+func (s *SchemaWatcher) FindFileByPath(path string) (protoreflect.FileDescriptor, error) {
+	res := s.getResolver()
+	if res == nil {
+		return nil, ErrSchemaWatcherNotReady
+	}
+	return res.FindFileByPath(path)
+}
+
+// FindDescriptorByName looks up a descriptor by the full name.
+//
+// This uses the most recently downloaded schema.
+func (s *SchemaWatcher) FindDescriptorByName(name protoreflect.FullName) (protoreflect.Descriptor, error) {
+	res := s.getResolver()
+	if res == nil {
+		return nil, ErrSchemaWatcherNotReady
+	}
+	return res.FindDescriptorByName(name)
+}
+
 // FindExtensionByName looks up an extension field by the field's full name.
 // Note that this is the full name of the field as determined by
 // where the extension is declared and is unrelated to the full name of the
@@ -406,6 +463,18 @@ func (s *SchemaWatcher) FindMessageByURL(url string) (protoreflect.MessageType, 
 		return nil, ErrSchemaWatcherNotReady
 	}
 	return res.FindMessageByURL(url)
+}
+
+// FindEnumByName looks up an enum by its full name.
+// E.g., "google.protobuf.Field.Kind".
+//
+// Implements [Resolver] using the most recently downloaded schema.
+func (s *SchemaWatcher) FindEnumByName(enum protoreflect.FullName) (protoreflect.EnumType, error) {
+	res := s.getResolver()
+	if res == nil {
+		return nil, ErrSchemaWatcherNotReady
+	}
+	return res.FindEnumByName(enum)
 }
 
 func (s *SchemaWatcher) start(ctx context.Context, pollingPeriod time.Duration, jitter float64) {
@@ -510,63 +579,4 @@ func (s *SchemaWatcher) getFileDescriptorSet(ctx context.Context) (*descriptorpb
 		}()
 	}
 	return descriptors, version, respTime, nil
-}
-
-// newResolver creates a new Resolver.
-//
-// If the input slice is empty, this returns nil
-// The given FileDescriptors must be self-contained, that is they must contain all imports.
-// This can NOT be guaranteed for FileDescriptorSets given over the wire, and can only be guaranteed from builds.
-func newResolver(fileDescriptors *descriptorpb.FileDescriptorSet) (*protoregistry.Files, Resolver, error) {
-	// TODO(TCN-925): probably needs to reparse unrecognized fields after it creates a resolver.
-	if len(fileDescriptors.File) == 0 {
-		return nil, (*protoregistry.Types)(nil), nil
-	}
-	files, err := protodesc.FileOptions{AllowUnresolvable: true}.
-		NewFiles(fileDescriptors)
-	if err != nil {
-		return nil, nil, err
-	}
-	types := &protoregistry.Types{}
-	var rangeErr error
-	files.RangeFiles(func(fileDescriptor protoreflect.FileDescriptor) bool {
-		if err := registerTypes(types, fileDescriptor); err != nil {
-			rangeErr = err
-			return false
-		}
-		return true
-	})
-	if rangeErr != nil {
-		return nil, nil, rangeErr
-	}
-	return files, types, nil
-}
-
-type typeContainer interface {
-	Enums() protoreflect.EnumDescriptors
-	Messages() protoreflect.MessageDescriptors
-	Extensions() protoreflect.ExtensionDescriptors
-}
-
-func registerTypes(types *protoregistry.Types, container typeContainer) error {
-	for i := 0; i < container.Enums().Len(); i++ {
-		if err := types.RegisterEnum(dynamicpb.NewEnumType(container.Enums().Get(i))); err != nil {
-			return err
-		}
-	}
-	for i := 0; i < container.Messages().Len(); i++ {
-		msg := container.Messages().Get(i)
-		if err := types.RegisterMessage(dynamicpb.NewMessageType(msg)); err != nil {
-			return err
-		}
-		if err := registerTypes(types, msg); err != nil {
-			return err
-		}
-	}
-	for i := 0; i < container.Extensions().Len(); i++ {
-		if err := types.RegisterExtension(dynamicpb.NewExtensionType(container.Extensions().Get(i))); err != nil {
-			return err
-		}
-	}
-	return nil
 }

@@ -18,16 +18,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/reflect/protoregistry"
 )
-
-// Resolver is a Resolver.
-//
-// This is only needed in cases where extensions may be present.
-type Resolver interface {
-	protoregistry.ExtensionTypeResolver
-	protoregistry.MessageTypeResolver
-}
 
 // InputFormat provides the interface to supply the [Converter] with an input
 // composition. The format provided must accept a [Resolver]. Includes
