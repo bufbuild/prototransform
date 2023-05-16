@@ -3,8 +3,6 @@ managed:
   enabled: true
   go_package_prefix:
     default: github.com/bufbuild/prototransform/internal/proto/gen
-    override:
-      buf.build/bufbuild/reflect: buf.build/gen/go/bufbuild/reflect/protocolbuffers/go
 plugins:
   - plugin: buf.build/protocolbuffers/go:v1.30.0
     out: gen

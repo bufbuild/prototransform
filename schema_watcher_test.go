@@ -121,7 +121,7 @@ func TestNewSchemaWatcher_cacheKey(t *testing.T) {
 				IncludeSymbols: []string{"foo.Bar"},
 				Cache:          &fakeCache{},
 			},
-			expectedKey: "buf.build/foo/bar;foo.Bar",
+			expectedKey: "buf.build/foo/bar_a410ef29f1e91dc3867dac52dc5006b0ffc8fca90bc3cf2a70b417a2cc46476f",
 		},
 		{
 			name: "module and symbols",
@@ -130,7 +130,7 @@ func TestNewSchemaWatcher_cacheKey(t *testing.T) {
 				IncludeSymbols: []string{"frob.Nitz", "gyzmeaux.Thing", "" /* unnamed package */, "foo.Bar"},
 				Cache:          &fakeCache{},
 			},
-			expectedKey: "buf.build/foo/bar;,foo.Bar,frob.Nitz,gyzmeaux.Thing",
+			expectedKey: "buf.build/foo/bar_4dc0cce9f82a1cc92bd90cf759a5e07a2650f2ef2d6e1eedc8be478d93d5bf10",
 		},
 		{
 			name: "module, version, and symbol",
@@ -139,7 +139,7 @@ func TestNewSchemaWatcher_cacheKey(t *testing.T) {
 				IncludeSymbols: []string{"foo.Bar"},
 				Cache:          &fakeCache{},
 			},
-			expectedKey: "buf.build/foo/bar:blah;foo.Bar",
+			expectedKey: "buf.build/foo/bar:blah_a410ef29f1e91dc3867dac52dc5006b0ffc8fca90bc3cf2a70b417a2cc46476f",
 		},
 	}
 	for _, testCase := range testCases {
@@ -454,12 +454,7 @@ func TestSchemaWatcher_UsingCache(t *testing.T) {
 		// seed cache
 		files := fakeFileDescriptorSet()
 		ts := time.Now()
-		data, err := encodeForCache(
-			&reflectv1beta1.GetFileDescriptorSetResponse{
-				FileDescriptorSet: files,
-				Version:           "abcdefg",
-			},
-			ts)
+		data, err := encodeForCache("foo/bar:main", nil, files, "abcdefg", ts)
 		require.NoError(t, err)
 		err = cache.Save(ctx, "foo/bar:main", data)
 		require.NoError(t, err)

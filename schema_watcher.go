@@ -16,6 +16,8 @@ package prototransform
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"sort"
@@ -23,7 +25,6 @@ import (
 	"sync"
 	"time"
 
-	"buf.build/gen/go/bufbuild/reflect/protocolbuffers/go/buf/reflect/v1beta1"
 	"google.golang.org/protobuf/reflect/protodesc"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
@@ -122,7 +123,20 @@ func NewSchemaWatcher(ctx context.Context, config *SchemaWatcherConfig) (*Schema
 	if config.Cache != nil {
 		cacheKey = schemaID
 		if len(syms) > 0 {
-			cacheKey += ";" + strings.Join(syms, ",")
+			// Add a strong hash of symbols to the end.
+			var sb strings.Builder
+			sb.WriteString(cacheKey)
+			sb.WriteByte('_')
+			sha := sha256.New()
+			for _, sym := range syms {
+				sha.Write(([]byte)(sym))
+			}
+			hx := hex.NewEncoder(&sb)
+			if _, err := hx.Write(sha.Sum(nil)); err != nil {
+				// should never happen...
+				return nil, fmt.Errorf("failed to generate hash of symbols for cache key: %w", err)
+			}
+			cacheKey = sb.String()
 		}
 	}
 
@@ -377,11 +391,15 @@ func (s *SchemaWatcher) getFileDescriptorSet(ctx context.Context, fallbackToCach
 		if cacheErr != nil {
 			return nil, "", time.Time{}, fmt.Errorf("%w (failed to load from cache: %v)", err, cacheErr)
 		}
-		msg, ts, cacheErr := decodeForCache(data)
+		msg, cacheErr := decodeForCache(data)
 		if cacheErr != nil {
 			return nil, "", time.Time{}, fmt.Errorf("%w (failed to decode cached value: %v)", err, cacheErr)
 		}
-		return msg.FileDescriptorSet, msg.Version, ts, nil
+		if !isCorrectCacheEntry(msg, s.schemaID, s.includeSymbols) {
+			// Cache key collision! Do not use this result!
+			return nil, "", time.Time{}, err
+		}
+		return msg.GetSchema().GetDescriptors(), msg.GetSchema().GetVersion(), msg.GetSchemaTimestamp().AsTime(), nil
 	}
 	if s.callback != nil {
 		go func() {
@@ -394,10 +412,7 @@ func (s *SchemaWatcher) getFileDescriptorSet(ctx context.Context, fallbackToCach
 	}
 	if s.cache != nil {
 		go func() {
-			data, err := encodeForCache(&reflectv1beta1.GetFileDescriptorSetResponse{
-				FileDescriptorSet: descriptors,
-				Version:           version,
-			}, respTime)
+			data, err := encodeForCache(s.schemaID, s.includeSymbols, descriptors, version, respTime)
 			if err != nil {
 				// Since we got the data by unmarshalling it (either from RPC
 				// response or cache), it must be marshallable. So this should

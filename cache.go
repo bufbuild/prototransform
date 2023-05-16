@@ -18,9 +18,9 @@ import (
 	"context"
 	"time"
 
-	reflectv1beta1 "buf.build/gen/go/bufbuild/reflect/protocolbuffers/go/buf/reflect/v1beta1"
 	prototransformv1alpha1 "github.com/bufbuild/prototransform/internal/proto/gen/buf/prototransform/v1alpha1"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/descriptorpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -35,18 +35,53 @@ type Cache interface {
 	Save(ctx context.Context, key string, data []byte) error
 }
 
-func encodeForCache(resp *reflectv1beta1.GetFileDescriptorSetResponse, respTime time.Time) ([]byte, error) {
+func encodeForCache(schemaID string, syms []string, descriptors *descriptorpb.FileDescriptorSet, version string, ts time.Time) ([]byte, error) {
 	entry := &prototransformv1alpha1.CacheEntry{
-		Response:     resp,
-		ResponseTime: timestamppb.New(respTime),
+		Schema: &prototransformv1alpha1.Schema{
+			Descriptors: descriptors,
+			Version:     version,
+		},
+		SchemaTimestamp: timestamppb.New(ts),
+		Id:              schemaID,
+		IncludedSymbols: syms,
 	}
 	return proto.Marshal(entry)
 }
 
-func decodeForCache(data []byte) (*reflectv1beta1.GetFileDescriptorSetResponse, time.Time, error) {
+func decodeForCache(data []byte) (*prototransformv1alpha1.CacheEntry, error) {
 	var entry prototransformv1alpha1.CacheEntry
 	if err := proto.Unmarshal(data, &entry); err != nil {
-		return nil, time.Time{}, err
+		return nil, err
 	}
-	return entry.Response, entry.ResponseTime.AsTime(), nil
+	return &entry, nil
+}
+
+func isCorrectCacheEntry(entry *prototransformv1alpha1.CacheEntry, schemaID string, syms []string) bool {
+	return entry.Id == schemaID && isSuperSet(entry.IncludedSymbols, syms)
+}
+
+func isSuperSet(have, want []string) bool {
+	if len(want) == 0 {
+		return len(have) == 0
+	}
+	if len(have) < len(want) {
+		// Technically, len(have) == 0 means it should be the full
+		// schema and thus we should possibly return true. But there
+		// are possible cases where "full schema, no filtering" could
+		// actually return something other than a superset, such as
+		// if the schema poller impl can't authoritatively enumerate
+		// the entire schema (like for gRPC server reflection).
+		return false
+	}
+	j := 0
+	for i := range have {
+		if have[i] == want[j] {
+			j++
+			if j == len(want) {
+				// matched them all
+				return true
+			}
+		}
+	}
+	return false
 }

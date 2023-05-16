@@ -18,41 +18,89 @@ import (
 	"testing"
 	"time"
 
-	reflectv1beta1 "buf.build/gen/go/bufbuild/reflect/protocolbuffers/go/buf/reflect/v1beta1"
+	prototransformv1alpha1 "github.com/bufbuild/prototransform/internal/proto/gen/buf/prototransform/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/descriptorpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestCacheEntryRoundTrip(t *testing.T) {
-	resp := &reflectv1beta1.GetFileDescriptorSetResponse{
-		FileDescriptorSet: &descriptorpb.FileDescriptorSet{
-			File: []*descriptorpb.FileDescriptorProto{
-				{
-					Name:    proto.String("test.proto"),
-					Package: proto.String("test"),
-				},
-				{
-					Name:       proto.String("foo.proto"),
-					Package:    proto.String("foo"),
-					Dependency: []string{"test.proto"},
-					MessageType: []*descriptorpb.DescriptorProto{
-						{
-							Name: proto.String("Foo"),
-						},
+	descriptors := &descriptorpb.FileDescriptorSet{
+		File: []*descriptorpb.FileDescriptorProto{
+			{
+				Name:    proto.String("test.proto"),
+				Package: proto.String("test"),
+			},
+			{
+				Name:       proto.String("foo.proto"),
+				Package:    proto.String("foo"),
+				Dependency: []string{"test.proto"},
+				MessageType: []*descriptorpb.DescriptorProto{
+					{
+						Name: proto.String("Foo"),
 					},
 				},
 			},
 		},
-		Version: "abcdefg",
 	}
+	version := "abcdefg"
 	respTime := time.Date(2023, time.January, 1, 12, 0, 0, 0, time.UTC)
+	data, err := encodeForCache("123", []string{"a1", "b2", "c3"}, descriptors, version, respTime)
+	require.NoError(t, err)
+	entry, err := decodeForCache(data)
+	require.NoError(t, err)
+	expectedEntry := &prototransformv1alpha1.CacheEntry{
+		Schema: &prototransformv1alpha1.Schema{
+			Descriptors: descriptors,
+			Version:     version,
+		},
+		Id:              "123",
+		IncludedSymbols: []string{"a1", "b2", "c3"},
+		SchemaTimestamp: timestamppb.New(respTime),
+	}
+	assert.True(t, proto.Equal(expectedEntry, entry))
+}
 
-	data, err := encodeForCache(resp, respTime)
-	require.NoError(t, err)
-	roundTripResp, roundTripRespTime, err := decodeForCache(data)
-	require.NoError(t, err)
-	assert.True(t, proto.Equal(roundTripResp, resp))
-	assert.True(t, roundTripRespTime.Equal(respTime))
+func TestIsSuperSet(t *testing.T) {
+	t.Parallel()
+	t.Run("both empty", func(t *testing.T) {
+		assert.True(t, isSuperSet(nil, nil))
+		assert.True(t, isSuperSet([]string{}, nil))
+		assert.True(t, isSuperSet(nil, make([]string, 0, 10)))
+	})
+	t.Run("superset is empty", func(t *testing.T) {
+		assert.False(t, isSuperSet(nil, []string{"abc"}))
+	})
+	t.Run("subset is empty", func(t *testing.T) {
+		assert.False(t, isSuperSet([]string{"abc"}, nil))
+	})
+	t.Run("same", func(t *testing.T) {
+		assert.True(t, isSuperSet([]string{"abc", "def", "ghi", "xyz"}, []string{"abc", "def", "ghi", "xyz"}))
+	})
+	t.Run("is superset (1)", func(t *testing.T) {
+		assert.True(t, isSuperSet([]string{"abc", "def", "ghi", "xyz"}, []string{"abc"}))
+	})
+	t.Run("is superset (2)", func(t *testing.T) {
+		assert.True(t, isSuperSet([]string{"abc", "def", "ghi", "xyz"}, []string{"abc", "ghi"}))
+	})
+	t.Run("is superset (3)", func(t *testing.T) {
+		assert.True(t, isSuperSet([]string{"abc", "def", "ghi", "xyz"}, []string{"abc", "xyz"}))
+	})
+	t.Run("is superset (4)", func(t *testing.T) {
+		assert.True(t, isSuperSet([]string{"abc", "def", "ghi", "xyz"}, []string{"xyz"}))
+	})
+	t.Run("is subset (1)", func(t *testing.T) {
+		assert.False(t, isSuperSet([]string{"abc"}, []string{"abc", "def", "ghi", "xyz"}))
+	})
+	t.Run("is subset (2)", func(t *testing.T) {
+		assert.False(t, isSuperSet([]string{"abc", "ghi"}, []string{"abc", "def", "ghi", "xyz"}))
+	})
+	t.Run("is subset (3)", func(t *testing.T) {
+		assert.False(t, isSuperSet([]string{"abc", "xyz"}, []string{"abc", "def", "ghi", "xyz"}))
+	})
+	t.Run("is subset (4)", func(t *testing.T) {
+		assert.False(t, isSuperSet([]string{"xyz"}, []string{"abc", "def", "ghi", "xyz"}))
+	})
 }
