@@ -156,7 +156,7 @@ func TestSchemaWatcher_getFileDescriptorSet(t *testing.T) {
 	s := &SchemaWatcher{
 		poller: NewSchemaPoller(newFakeFileDescriptorSetService(), "", ""),
 	}
-	got, version, _, err := s.getFileDescriptorSet(context.Background(), false)
+	got, version, _, err := s.getFileDescriptorSet(context.Background())
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	require.NotEmpty(t, version)
@@ -164,7 +164,7 @@ func TestSchemaWatcher_getFileDescriptorSet(t *testing.T) {
 
 func TestSchemaWatcher_FindExtensionByName(t *testing.T) {
 	t.Parallel()
-	resolver, err := newResolver(fakeFileDescriptorSet())
+	_, resolver, err := newResolver(fakeFileDescriptorSet())
 	require.NoError(t, err)
 	schemaWatcher := &SchemaWatcher{
 		resolver: resolver,
@@ -176,7 +176,7 @@ func TestSchemaWatcher_FindExtensionByName(t *testing.T) {
 
 func TestSchemaWatcher_FindExtensionByNumber(t *testing.T) {
 	t.Parallel()
-	resolver, err := newResolver(fakeFileDescriptorSet())
+	_, resolver, err := newResolver(fakeFileDescriptorSet())
 	require.NoError(t, err)
 	schemaWatcher := &SchemaWatcher{
 		resolver: resolver,
@@ -188,7 +188,7 @@ func TestSchemaWatcher_FindExtensionByNumber(t *testing.T) {
 
 func TestSchemaWatcher_FindMessageByName(t *testing.T) {
 	t.Parallel()
-	resolver, err := newResolver(fakeFileDescriptorSet())
+	_, resolver, err := newResolver(fakeFileDescriptorSet())
 	require.NoError(t, err)
 	schemaWatcher := &SchemaWatcher{
 		resolver: resolver,
@@ -200,7 +200,7 @@ func TestSchemaWatcher_FindMessageByName(t *testing.T) {
 
 func TestSchemaWatcher_FindMessageByURL(t *testing.T) {
 	t.Parallel()
-	resolver, err := newResolver(fakeFileDescriptorSet())
+	_, resolver, err := newResolver(fakeFileDescriptorSet())
 	require.NoError(t, err)
 	schemaWatcher := &SchemaWatcher{
 		resolver: resolver,
@@ -232,7 +232,7 @@ func TestSchemaWatcher_updateResolver(t *testing.T) {
 				},
 			},
 		}
-		resolver, err := newResolver(emptySchema)
+		_, resolver, err := newResolver(emptySchema)
 		require.NoError(t, err)
 
 		schemaWatcher := &SchemaWatcher{
@@ -241,7 +241,7 @@ func TestSchemaWatcher_updateResolver(t *testing.T) {
 		}
 		_, err = schemaWatcher.resolver.FindMessageByName("foo.bar.Message")
 		require.Error(t, err, "not found")
-		require.NoError(t, schemaWatcher.updateResolver(context.Background(), false))
+		require.NoError(t, schemaWatcher.updateResolver(context.Background()))
 		got, err := schemaWatcher.resolver.FindMessageByName("foo.bar.Message")
 		require.NoError(t, err)
 		assert.Equal(t, "foo.bar.Message", string(got.Descriptor().FullName()))
@@ -255,7 +255,7 @@ func TestSchemaWatcher_updateResolver(t *testing.T) {
 				},
 			}, "", ""),
 		}
-		err := schemaWatcher.updateResolver(context.Background(), false)
+		err := schemaWatcher.updateResolver(context.Background())
 		require.Error(t, err)
 		assert.EqualError(t, err, "failed to fetch schema: internal: foo")
 	})
@@ -275,7 +275,7 @@ func TestSchemaWatcher_updateResolver(t *testing.T) {
 				},
 			}, "", ""),
 		}
-		err := schemaWatcher.updateResolver(context.Background(), false)
+		err := schemaWatcher.updateResolver(context.Background())
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "unable to create resolver from schema:")
 	})

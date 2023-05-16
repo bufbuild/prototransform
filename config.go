@@ -55,6 +55,12 @@ type SchemaWatcherConfig struct {
 	// return an error. If unset and left zero, a default period of 5 minutes
 	// is used.
 	PollingPeriod time.Duration
+	// A number between 0 and 1 that represents the amount of jitter to add to
+	// the polling period. A value of zero means no jitter. A value of one means
+	// up to 100% jitter, so the actual period would be between 0 and 2*PollingPeriod.
+	// To prevent self-synchronization (and thus thundering herds) when there are
+	// multiple pollers, a value of 0.1 to 0.3 is typical.
+	Jitter float64
 	// If Cache is non-nil, it is used for increased robustness, even in the
 	// face of the remote schema registry being unavailable. If non-nil and the
 	// API call to initially retrieve a schema fails, the schema will instead
@@ -63,11 +69,14 @@ type SchemaWatcherConfig struct {
 	// restarted and the remote registry is unavailable, the latest cached schema
 	// can still be used.
 	Cache Cache
-	// OnUpdate is an optional callback that will be invoked when a schema is
-	// fetched. This can be used by an application to take action when a new
-	// schema becomes available. It is possible that the previous and newly
-	// fetched schema are the same.
+	// OnUpdate is an optional callback that will be invoked when a new schema
+	// is fetched. This can be used by an application to take action when a new
+	// schema becomes available.
 	OnUpdate func()
+	// OnError is an optional callback that will be invoked when a schema cannot
+	// be fetched. This could be due to the SchemaPoller returning an error or
+	// failure to convert the fetched descriptors into a resolver.
+	OnError func(error)
 }
 
 func (c *SchemaWatcherConfig) validate() error {
