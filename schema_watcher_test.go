@@ -84,7 +84,7 @@ func TestNewSchemaWatcher_cacheKey(t *testing.T) {
 	t.Parallel()
 	client := newFakeFileDescriptorSetService()
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	t.Cleanup(cancel)
 	testCases := []struct {
 		name        string
 		config      SchemaWatcherConfig
@@ -142,10 +142,12 @@ func TestNewSchemaWatcher_cacheKey(t *testing.T) {
 		},
 	}
 	for _, testCase := range testCases {
+		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
-			sw, err := NewSchemaWatcher(ctx, &testCase.config)
+			t.Parallel()
+			watcher, err := NewSchemaWatcher(ctx, &testCase.config)
 			require.NoError(t, err)
-			require.Equal(t, testCase.expectedKey, sw.cacheKey)
+			require.Equal(t, testCase.expectedKey, watcher.cacheKey)
 		})
 	}
 }
@@ -317,28 +319,28 @@ func TestSchemaWatcher_AwaitReady(t *testing.T) {
 		}
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		sw, err := NewSchemaWatcher(ctx, &SchemaWatcherConfig{
+		watcher, err := NewSchemaWatcher(ctx, &SchemaWatcherConfig{
 			SchemaPoller: NewSchemaPoller(svc, "foo/bar", ""),
 		})
 		require.NoError(t, err)
 
 		timeoutCtx, cancel := context.WithTimeout(ctx, 500*time.Millisecond)
 		defer cancel()
-		err = sw.AwaitReady(timeoutCtx)
+		err = watcher.AwaitReady(timeoutCtx)
 		require.Error(t, err)
 		require.True(t, errors.Is(err, context.DeadlineExceeded))
-		ok, _ := sw.LastResolved()
+		ok, _ := watcher.LastResolved()
 		require.False(t, ok)
 
-		ts := time.Now()
+		timestamp := time.Now()
 		close(latch)
 		timeoutCtx, cancel = context.WithTimeout(ctx, 500*time.Millisecond)
 		defer cancel()
-		err = sw.AwaitReady(timeoutCtx)
+		err = watcher.AwaitReady(timeoutCtx)
 		require.NoError(t, err)
-		ok, resolvedTime := sw.LastResolved()
+		ok, resolvedTime := watcher.LastResolved()
 		require.True(t, ok)
-		require.False(t, resolvedTime.Before(ts))
+		require.False(t, resolvedTime.Before(timestamp))
 	})
 	t.Run("errors before becoming ready", func(t *testing.T) {
 		t.Parallel()
@@ -353,7 +355,7 @@ func TestSchemaWatcher_AwaitReady(t *testing.T) {
 		}
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		sw, err := NewSchemaWatcher(ctx, &SchemaWatcherConfig{
+		watcher, err := NewSchemaWatcher(ctx, &SchemaWatcherConfig{
 			SchemaPoller:  NewSchemaPoller(svc, "foo/bar", ""),
 			PollingPeriod: 100 * time.Millisecond,
 		})
@@ -361,24 +363,24 @@ func TestSchemaWatcher_AwaitReady(t *testing.T) {
 
 		timeoutCtx, cancel := context.WithTimeout(ctx, 500*time.Millisecond)
 		defer cancel()
-		err = sw.AwaitReady(timeoutCtx)
+		err = watcher.AwaitReady(timeoutCtx)
 		// download should have failed at least once so this should be the RPC error
 		require.Error(t, err)
 		var connErr *connect.Error
 		require.True(t, errors.As(err, &connErr))
 		require.Equal(t, connect.CodeUnavailable, connErr.Code())
-		ok, _ := sw.LastResolved()
+		ok, _ := watcher.LastResolved()
 		require.False(t, ok)
 
-		ts := time.Now()
+		timestamp := time.Now()
 		shouldSucceed.Store(true)
 		timeoutCtx, cancel = context.WithTimeout(ctx, 500*time.Millisecond)
 		defer cancel()
-		err = sw.AwaitReady(timeoutCtx)
+		err = watcher.AwaitReady(timeoutCtx)
 		require.NoError(t, err)
-		ok, resolvedTime := sw.LastResolved()
+		ok, resolvedTime := watcher.LastResolved()
 		require.True(t, ok)
-		require.False(t, resolvedTime.Before(ts))
+		require.False(t, resolvedTime.Before(timestamp))
 	})
 	t.Run("never becomes ready", func(t *testing.T) {
 		t.Parallel()
@@ -389,12 +391,12 @@ func TestSchemaWatcher_AwaitReady(t *testing.T) {
 		}
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		sw, err := NewSchemaWatcher(ctx, &SchemaWatcherConfig{
+		watcher, err := NewSchemaWatcher(ctx, &SchemaWatcherConfig{
 			SchemaPoller: NewSchemaPoller(brokenService, "foo/bar", ""),
 		})
 		require.NoError(t, err)
-		sw.Stop()
-		err = sw.AwaitReady(ctx)
+		watcher.Stop()
+		err = watcher.AwaitReady(ctx)
 		require.Error(t, err)
 		require.True(t, errors.Is(err, ErrSchemaWatcherStopped))
 	})
@@ -412,16 +414,16 @@ func TestSchemaWatcher_UsingCache(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		var loadHookCalled sync.Once
-		ch := make(chan struct{})
+		loadHookChan := make(chan struct{})
 		cache := &fakeCache{
 			loadHook: func() {
 				loadHookCalled.Do(func() {
-					close(ch)
+					close(loadHookChan)
 				})
 			},
 		}
 
-		sw, err := NewSchemaWatcher(ctx, &SchemaWatcherConfig{
+		watcher, err := NewSchemaWatcher(ctx, &SchemaWatcherConfig{
 			SchemaPoller: NewSchemaPoller(brokenService, "foo/bar", "main"),
 			Cache:        cache,
 		})
@@ -430,7 +432,7 @@ func TestSchemaWatcher_UsingCache(t *testing.T) {
 		select {
 		case <-time.After(time.Second):
 			t.Fatal("cache.Load never called")
-		case <-ch:
+		case <-loadHookChan:
 		}
 		loads := cache.getLoadCalls()
 		require.GreaterOrEqual(t, len(loads), 1) // racing w/ retry so could be >1
@@ -439,10 +441,10 @@ func TestSchemaWatcher_UsingCache(t *testing.T) {
 		require.Equal(t, 0, len(saves))
 
 		// schema watcher cannot become ready if service unavailable and cache has no entry
-		_, err = sw.FindMessageByName("foo.bar.Message")
+		_, err = watcher.FindMessageByName("foo.bar.Message")
 		require.Error(t, err)
 		require.True(t, errors.Is(err, ErrSchemaWatcherNotReady))
-		ok, _ := sw.LastResolved()
+		ok, _ := watcher.LastResolved()
 		require.False(t, ok)
 	})
 	t.Run("loads from populated cache", func(t *testing.T) {
@@ -452,13 +454,13 @@ func TestSchemaWatcher_UsingCache(t *testing.T) {
 		cache := &fakeCache{}
 		// seed cache
 		files := fakeFileDescriptorSet()
-		ts := time.Now()
-		data, err := encodeForCache("foo/bar:main", nil, files, "abcdefg", ts)
+		timestamp := time.Now()
+		data, err := encodeForCache("foo/bar:main", nil, files, "abcdefg", timestamp)
 		require.NoError(t, err)
 		err = cache.Save(ctx, "foo/bar:main", data)
 		require.NoError(t, err)
 
-		sw, err := NewSchemaWatcher(ctx, &SchemaWatcherConfig{
+		watcher, err := NewSchemaWatcher(ctx, &SchemaWatcherConfig{
 			SchemaPoller: NewSchemaPoller(brokenService, "foo/bar", "main"),
 			Cache:        cache,
 		})
@@ -466,7 +468,7 @@ func TestSchemaWatcher_UsingCache(t *testing.T) {
 
 		readyCtx, cancel := context.WithTimeout(ctx, time.Second)
 		defer cancel()
-		err = sw.AwaitReady(readyCtx)
+		err = watcher.AwaitReady(readyCtx)
 		require.NoError(t, err)
 		loads := cache.getLoadCalls()
 		require.Equal(t, 1, len(loads))
@@ -474,28 +476,28 @@ func TestSchemaWatcher_UsingCache(t *testing.T) {
 		saves := cache.getSaveCalls()
 		require.Equal(t, 1, len(saves)) // just one call to seed cache above
 
-		_, err = sw.FindMessageByName("foo.bar.Message")
+		_, err = watcher.FindMessageByName("foo.bar.Message")
 		require.NoError(t, err)
-		ok, resolveTime := sw.LastResolved() // timestamp from cache
+		ok, resolveTime := watcher.LastResolved() // timestamp from cache
 		require.True(t, ok)
-		require.True(t, ts.Equal(resolveTime))
+		require.True(t, timestamp.Equal(resolveTime))
 	})
 	t.Run("saves to cache", func(t *testing.T) {
 		t.Parallel()
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		var saveHookCalled sync.Once
-		ch := make(chan struct{})
+		saveHookChan := make(chan struct{})
 		cache := &fakeCache{
 			saveHook: func() {
 				saveHookCalled.Do(func() {
-					close(ch)
+					close(saveHookChan)
 				})
 			},
 		}
 
-		ts := time.Now()
-		sw, err := NewSchemaWatcher(ctx, &SchemaWatcherConfig{
+		timestamp := time.Now()
+		watcher, err := NewSchemaWatcher(ctx, &SchemaWatcherConfig{
 			SchemaPoller: NewSchemaPoller(newFakeFileDescriptorSetService(), "foo/bar", "main"),
 			Cache:        cache,
 		})
@@ -504,20 +506,20 @@ func TestSchemaWatcher_UsingCache(t *testing.T) {
 		select {
 		case <-time.After(time.Second):
 			t.Fatal("cache.Save never called")
-		case <-ch:
+		case <-saveHookChan:
 		}
 		saves := cache.getSaveCalls()
 		require.Equal(t, 1, len(saves))
 
 		readyCtx, cancel := context.WithTimeout(ctx, time.Second)
 		defer cancel()
-		err = sw.AwaitReady(readyCtx)
+		err = watcher.AwaitReady(readyCtx)
 		require.NoError(t, err)
-		_, err = sw.FindMessageByName("foo.bar.Message")
+		_, err = watcher.FindMessageByName("foo.bar.Message")
 		require.NoError(t, err)
-		ok, resolveTime := sw.LastResolved()
+		ok, resolveTime := watcher.LastResolved()
 		require.True(t, ok)
-		require.False(t, resolveTime.Before(ts))
+		require.False(t, resolveTime.Before(timestamp))
 	})
 }
 

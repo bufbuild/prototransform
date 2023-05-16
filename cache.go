@@ -35,13 +35,19 @@ type Cache interface {
 	Save(ctx context.Context, key string, data []byte) error
 }
 
-func encodeForCache(schemaID string, syms []string, descriptors *descriptorpb.FileDescriptorSet, version string, ts time.Time) ([]byte, error) {
+func encodeForCache(
+	schemaID string,
+	syms []string,
+	descriptors *descriptorpb.FileDescriptorSet,
+	version string,
+	timestamp time.Time,
+) ([]byte, error) {
 	entry := &prototransformv1alpha1.CacheEntry{
 		Schema: &prototransformv1alpha1.Schema{
 			Descriptors: descriptors,
 			Version:     version,
 		},
-		SchemaTimestamp: timestamppb.New(ts),
+		SchemaTimestamp: timestamppb.New(timestamp),
 		Id:              schemaID,
 		IncludedSymbols: syms,
 	}
