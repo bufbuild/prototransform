@@ -53,10 +53,7 @@ func (c *cache) Load(ctx context.Context, key string) ([]byte, error) {
 	defer func() {
 		_ = conn.Close()
 	}()
-	if connCtx, ok := conn.(redis.ConnWithContext); ok {
-		return redis.Bytes(connCtx.DoContext(ctx, "get", c.KeyPrefix+key))
-	}
-	return redis.Bytes(conn.Do("get", c.KeyPrefix+key))
+	return redis.Bytes(redis.DoContext(conn, ctx, "get", c.KeyPrefix+key))
 }
 
 func (c *cache) Save(ctx context.Context, key string, data []byte) error {
@@ -75,10 +72,6 @@ func (c *cache) Save(ctx context.Context, key string, data []byte) error {
 			args = append(args, "px", millis)
 		}
 	}
-	if connCtx, ok := conn.(redis.ConnWithContext); ok {
-		_, err = connCtx.DoContext(ctx, "set", args...)
-	} else {
-		_, err = conn.Do("set", args...)
-	}
+	_, err = redis.DoContext(conn, ctx, "set", args...)
 	return err
 }
