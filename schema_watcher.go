@@ -21,10 +21,12 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protodesc"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
@@ -51,17 +53,20 @@ type SchemaWatcher struct {
 	schemaID       string
 	includeSymbols []string
 	cacheKey       string
+	resolveNow     chan struct{}
 
 	// used to prevent concurrent calls to cache.Save, which could
 	// otherwise potentially result in a known-stale value in the cache.
 	cacheMu sync.Mutex
 	cache   Cache
 
-	callbackMu sync.Mutex
-	callback   func()
+	callbackMu  sync.Mutex
+	callback    func()
+	errCallback func(error)
 
 	resolverMu      sync.RWMutex
 	resolver        Resolver
+	resolvedSchema  *descriptorpb.FileDescriptorSet
 	resolveTime     time.Time
 	resolvedVersion string
 	// if nil, watcher has been stopped; if not nil, will be called
@@ -147,11 +152,13 @@ func NewSchemaWatcher(ctx context.Context, config *SchemaWatcherConfig) (*Schema
 		includeSymbols: syms,
 		cacheKey:       cacheKey,
 		callback:       config.OnUpdate,
+		errCallback:    config.OnError,
 		cache:          config.Cache,
 		stop:           cancel,
 		resolverReady:  make(chan struct{}),
+		resolveNow:     make(chan struct{}, 1),
 	}
-	schemaWatcher.start(ctx, pollingPeriod)
+	schemaWatcher.start(ctx, pollingPeriod, config.Jitter)
 	return schemaWatcher, nil
 }
 
@@ -161,31 +168,85 @@ func (s *SchemaWatcher) getResolver() Resolver {
 	return s.resolver
 }
 
-func (s *SchemaWatcher) updateResolver(ctx context.Context, fallbackToCache bool) error {
-	schema, schemaVersion, schemaTs, err := s.getFileDescriptorSet(ctx, fallbackToCache)
+func (s *SchemaWatcher) updateResolver(ctx context.Context) (err error) {
+	var changed bool
+	if s.callback != nil || s.errCallback != nil {
+		// make sure to invoke callback at the end to notify application
+		defer func() {
+			if changed && s.callback != nil {
+				go func() {
+					// Lock forces sequential calls to callback and also
+					// means callback does not need to be thread-safe.
+					s.callbackMu.Lock()
+					defer s.callbackMu.Unlock()
+					s.callback()
+				}()
+			} else if !errors.Is(err, ErrSchemaNotModified) && s.errCallback != nil {
+				go func() {
+					s.callbackMu.Lock()
+					defer s.callbackMu.Unlock()
+					s.errCallback(err)
+				}()
+			}
+		}()
+	}
+
+	schema, schemaVersion, schemaTs, err := s.getFileDescriptorSet(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to fetch schema: %w", err)
 	}
-	resolver, err := newResolver(schema)
+
+	s.resolverMu.RLock()
+	prevSchema, prevTimestamp := s.resolvedSchema, s.resolveTime
+	s.resolverMu.RUnlock()
+
+	if prevSchema != nil {
+		if schemaTs.Before(prevTimestamp) {
+			// Only possible if schemaTs is loaded from cache entry that is
+			// older than last successful load. If that happens, just leave
+			// the existing resolver in place.
+			return nil
+		}
+		if proto.Equal(prevSchema, schema) {
+			// nothing changed
+			return nil
+		}
+	}
+
+	files, resolver, err := newResolver(schema)
 	if err != nil {
 		return fmt.Errorf("unable to create resolver from schema: %w", err)
 	}
+
+	if len(s.includeSymbols) > 0 {
+		var missingSymbols []string
+		for _, sym := range s.includeSymbols {
+			_, err := files.FindDescriptorByName(protoreflect.FullName(sym))
+			if err != nil {
+				missingSymbols = append(missingSymbols, sym)
+			}
+		}
+		if len(missingSymbols) > 0 {
+			sort.Strings(missingSymbols)
+			for i, sym := range missingSymbols {
+				missingSymbols[i] = strconv.Quote(sym)
+			}
+			return fmt.Errorf("schema poller returned incomplete schema: missing %v", strings.Join(missingSymbols, ", "))
+		}
+	}
+
 	s.resolverMu.Lock()
 	defer s.resolverMu.Unlock()
-	if schemaTs.Before(s.resolveTime) {
-		// Only possible if schemaTs is loaded from cache entry that is
-		// older than last successful load. If that happens, just leave
-		// the existing resolver in place.
-		return nil
-	}
 	s.resolver = resolver
 	s.resolveTime = schemaTs
-	s.resolverErr = nil
+	s.resolvedSchema = schema
 	s.resolvedVersion = schemaVersion
+	s.resolverErr = nil
+	changed = true
 	return nil
 }
 
-func (s *SchemaWatcher) initialUpdateResolver(ctx context.Context, pollingPeriod time.Duration) (success bool) {
+func (s *SchemaWatcher) initialUpdateResolver(ctx context.Context, pollingPeriod time.Duration, jitter float64) (success bool) {
 	defer func() {
 		s.resolverMu.Lock()
 		defer s.resolverMu.Unlock()
@@ -198,7 +259,7 @@ func (s *SchemaWatcher) initialUpdateResolver(ctx context.Context, pollingPeriod
 
 	var delay time.Duration
 	for {
-		err := s.updateResolver(ctx, true)
+		err := s.updateResolver(ctx)
 		if err == nil {
 			// success!
 			return true
@@ -210,10 +271,12 @@ func (s *SchemaWatcher) initialUpdateResolver(ctx context.Context, pollingPeriod
 			// immediately retry, but delay 1s if it fails again
 			delay = time.Second
 		} else {
+			timer := time.NewTimer(addJitter(delay, jitter))
 			select {
 			case <-ctx.Done():
+				timer.Stop()
 				return false
-			case <-time.After(delay):
+			case <-timer.C:
 			}
 			delay = delay * 2 // exponential backoff
 		}
@@ -285,6 +348,16 @@ func (s *SchemaWatcher) LastResolved() (bool, time.Time) {
 	return true, s.resolveTime
 }
 
+// ResolveNow tells the watcher to poll for a new schema immediately instead of
+// waiting until the next scheduled time per the configured polling period.
+func (s *SchemaWatcher) ResolveNow() {
+	select {
+	case s.resolveNow <- struct{}{}:
+	default:
+		// channel buffer is full, which means "resolve now" signal already pending
+	}
+}
+
 // FindExtensionByName looks up an extension field by the field's full name.
 // Note that this is the full name of the field as determined by
 // where the extension is declared and is unrelated to the full name of the
@@ -335,23 +408,36 @@ func (s *SchemaWatcher) FindMessageByURL(url string) (protoreflect.MessageType, 
 	return res.FindMessageByURL(url)
 }
 
-func (s *SchemaWatcher) start(ctx context.Context, pollingPeriod time.Duration) {
+func (s *SchemaWatcher) start(ctx context.Context, pollingPeriod time.Duration, jitter float64) {
 	go func() {
-		if !s.initialUpdateResolver(ctx, pollingPeriod) {
+		if !s.initialUpdateResolver(ctx, pollingPeriod, jitter) {
 			return
 		}
 		defer s.Stop()
-		ticker := time.NewTicker(pollingPeriod)
-		defer ticker.Stop()
 		for {
+			// consume any "resolve now" signal that arrived while we were concurrently resolving
 			select {
-			case <-ticker.C:
+			case <-s.resolveNow:
+			default:
+			}
+
+			timer := time.NewTimer(addJitter(pollingPeriod, jitter))
+			select {
+			case <-timer.C:
 				if ctx.Err() != nil {
 					// don't bother fetching a schema if context is done
 					return
 				}
-				_ = s.updateResolver(ctx, false)
+				_ = s.updateResolver(ctx)
+			case <-s.resolveNow:
+				timer.Stop()
+				if ctx.Err() != nil {
+					// don't bother fetching a schema if context is done
+					return
+				}
+				_ = s.updateResolver(ctx)
 			case <-ctx.Done():
+				timer.Stop()
 				return
 			}
 		}
@@ -375,15 +461,14 @@ func (s *SchemaWatcher) IsStopped() bool {
 	return s.stop == nil
 }
 
-func (s *SchemaWatcher) getFileDescriptorSet(ctx context.Context, fallbackToCache bool) (*descriptorpb.FileDescriptorSet, string, time.Time, error) {
+func (s *SchemaWatcher) getFileDescriptorSet(ctx context.Context) (*descriptorpb.FileDescriptorSet, string, time.Time, error) {
 	s.resolverMu.RLock()
 	currentVersion := s.resolvedVersion
 	s.resolverMu.RUnlock()
 	descriptors, version, err := s.poller.GetSchema(ctx, s.includeSymbols, currentVersion)
 	respTime := time.Now()
-
 	if err != nil {
-		if errors.Is(err, ErrSchemaNotModified) || s.cache == nil || !fallbackToCache {
+		if errors.Is(err, ErrSchemaNotModified) || s.cache == nil {
 			return nil, "", time.Time{}, err
 		}
 		// try to fallback to cache
@@ -400,15 +485,6 @@ func (s *SchemaWatcher) getFileDescriptorSet(ctx context.Context, fallbackToCach
 			return nil, "", time.Time{}, err
 		}
 		return msg.GetSchema().GetDescriptors(), msg.GetSchema().GetVersion(), msg.GetSchemaTimestamp().AsTime(), nil
-	}
-	if s.callback != nil {
-		go func() {
-			// Lock forces sequential calls to callback and also
-			// means callback does not need to be thread-safe.
-			s.callbackMu.Lock()
-			defer s.callbackMu.Unlock()
-			s.callback()
-		}()
 	}
 	if s.cache != nil {
 		go func() {
@@ -441,18 +517,15 @@ func (s *SchemaWatcher) getFileDescriptorSet(ctx context.Context, fallbackToCach
 // If the input slice is empty, this returns nil
 // The given FileDescriptors must be self-contained, that is they must contain all imports.
 // This can NOT be guaranteed for FileDescriptorSets given over the wire, and can only be guaranteed from builds.
-func newResolver(fileDescriptors *descriptorpb.FileDescriptorSet) (Resolver, error) {
+func newResolver(fileDescriptors *descriptorpb.FileDescriptorSet) (*protoregistry.Files, Resolver, error) {
 	// TODO(TCN-925): probably needs to reparse unrecognized fields after it creates a resolver.
 	if len(fileDescriptors.File) == 0 {
-		return (*protoregistry.Types)(nil), nil
+		return nil, (*protoregistry.Types)(nil), nil
 	}
-	files, err := protodesc.FileOptions{
-		AllowUnresolvable: true,
-	}.NewFiles(
-		fileDescriptors,
-	)
+	files, err := protodesc.FileOptions{AllowUnresolvable: true}.
+		NewFiles(fileDescriptors)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	types := &protoregistry.Types{}
 	var rangeErr error
@@ -464,9 +537,9 @@ func newResolver(fileDescriptors *descriptorpb.FileDescriptorSet) (Resolver, err
 		return true
 	})
 	if rangeErr != nil {
-		return nil, rangeErr
+		return nil, nil, rangeErr
 	}
-	return types, nil
+	return files, types, nil
 }
 
 type typeContainer interface {
