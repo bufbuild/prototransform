@@ -211,7 +211,7 @@ func TestSchemaWatcher_FindMessageByURL(t *testing.T) {
 
 func TestSchemaWatcher_getResolver(t *testing.T) {
 	t.Parallel()
-	want := fakeResolver{}
+	want := &resolver{}
 	schemaWatcher := &SchemaWatcher{resolver: want}
 	assert.True(t, schemaWatcher.resolverMu.TryRLock())
 	assert.Equal(t, want, schemaWatcher.getResolver())
@@ -625,10 +625,6 @@ func fakeFileDescriptorSet() *descriptorpb.FileDescriptorSet {
 			},
 		},
 	}
-}
-
-type fakeResolver struct {
-	resolver
 }
 
 type fakeCacheOp struct {

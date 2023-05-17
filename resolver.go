@@ -34,21 +34,7 @@ type Resolver interface {
 	FindEnumByName(enum protoreflect.FullName) (protoreflect.EnumType, error)
 }
 
-// resolver is the interface used by and provided by a *SchemaWatcher, which is
-// intentionally broader than the above interface.
-type resolver interface {
-	Resolver
-	protodesc.Resolver
-
-	// RangeFiles iterates over all registered files while f returns true. The
-	// iteration order is undefined.
-	RangeFiles(f func(protoreflect.FileDescriptor) bool)
-	// RangeFilesByPackage iterates over all registered files in a given proto package
-	// while f returns true. The iteration order is undefined.
-	RangeFilesByPackage(name protoreflect.FullName, f func(protoreflect.FileDescriptor) bool)
-}
-
-type resolverImpl struct {
+type resolver struct {
 	*protoregistry.Files
 	*protoregistry.Types
 }
@@ -58,8 +44,8 @@ type resolverImpl struct {
 // If the input slice is empty, this returns nil
 // The given FileDescriptors must be self-contained, that is they must contain all imports.
 // This can NOT be guaranteed for FileDescriptorSets given over the wire, and can only be guaranteed from builds.
-func newResolver(fileDescriptors *descriptorpb.FileDescriptorSet) (resolver, error) {
-	var r resolverImpl
+func newResolver(fileDescriptors *descriptorpb.FileDescriptorSet) (*resolver, error) {
+	var r resolver
 	// TODO(TCN-925): maybe should reparse unrecognized fields in fileDescriptors after creating resolver?
 	if len(fileDescriptors.File) == 0 {
 		return &r, nil

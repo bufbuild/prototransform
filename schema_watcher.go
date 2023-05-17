@@ -62,7 +62,7 @@ type SchemaWatcher struct {
 	errCallback func(error)
 
 	resolverMu      sync.RWMutex
-	resolver        resolver
+	resolver        *resolver
 	resolvedSchema  *descriptorpb.FileDescriptorSet
 	resolveTime     time.Time
 	resolvedVersion string
@@ -159,7 +159,7 @@ func NewSchemaWatcher(ctx context.Context, config *SchemaWatcherConfig) (*Schema
 	return schemaWatcher, nil
 }
 
-func (s *SchemaWatcher) getResolver() resolver {
+func (s *SchemaWatcher) getResolver() *resolver {
 	s.resolverMu.RLock()
 	defer s.resolverMu.RUnlock()
 	return s.resolver
