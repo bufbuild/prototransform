@@ -414,12 +414,6 @@ func (s *SchemaWatcher) start(ctx context.Context, pollingPeriod time.Duration, 
 			return
 		}
 		defer s.Stop()
-		period := pollingPeriod
-		if jitter != 0 {
-			period = addJitter(pollingPeriod, jitter)
-		}
-		ticker := time.NewTicker(period)
-		defer ticker.Stop()
 		for {
 			// consume any "resolve now" signal that arrived while we were concurrently resolving
 			select {
@@ -427,24 +421,23 @@ func (s *SchemaWatcher) start(ctx context.Context, pollingPeriod time.Duration, 
 			default:
 			}
 
+			timer := time.NewTimer(addJitter(pollingPeriod, jitter))
 			select {
-			case <-ticker.C:
+			case <-timer.C:
 				if ctx.Err() != nil {
 					// don't bother fetching a schema if context is done
 					return
 				}
-				if jitter != 0 {
-					period = addJitter(pollingPeriod, jitter)
-					ticker.Reset(period)
-				}
 				_ = s.updateResolver(ctx)
 			case <-s.resolveNow:
+				timer.Stop()
 				if ctx.Err() != nil {
 					// don't bother fetching a schema if context is done
 					return
 				}
 				_ = s.updateResolver(ctx)
 			case <-ctx.Done():
+				timer.Stop()
 				return
 			}
 		}
