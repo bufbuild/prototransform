@@ -24,43 +24,48 @@ import (
 )
 
 func TestRedact(t *testing.T) {
+	t.Parallel()
 	t.Run("RedactedMessage", func(t *testing.T) {
-		in := &foov1.RedactedMessage{
+		t.Parallel()
+		input := &foov1.RedactedMessage{
 			Name: "sensitiveInformation",
 		}
-		got := Redact(removeSensitiveData())(in.ProtoReflect())
+		got := Redact(removeSensitiveData())(input.ProtoReflect())
 		want := &foov1.RedactedMessage{}
 		assert.True(t, proto.Equal(want, got.Interface()))
 	})
 	t.Run("RedactedMessageField", func(t *testing.T) {
-		in := &foov1.RedactedMessageField{
+		t.Parallel()
+		input := &foov1.RedactedMessageField{
 			Name: &foov1.RedactedMessage{
 				Name: "sensitiveInformation",
 			},
 		}
-		got := Redact(removeSensitiveData())(in.ProtoReflect())
+		got := Redact(removeSensitiveData())(input.ProtoReflect())
 		want := &foov1.RedactedMessageField{
 			Name: &foov1.RedactedMessage{},
 		}
 		assert.True(t, proto.Equal(want, got.Interface()))
 	})
 	t.Run("RedactedRepeatedField", func(t *testing.T) {
-		in := &foov1.RedactedRepeatedField{
+		t.Parallel()
+		input := &foov1.RedactedRepeatedField{
 			Name: []string{"sensitiveInformation"},
 		}
-		got := Redact(removeSensitiveData())(in.ProtoReflect())
+		got := Redact(removeSensitiveData())(input.ProtoReflect())
 		want := &foov1.RedactedRepeatedField{}
 		assert.True(t, proto.Equal(want, got.Interface()))
 	})
 	t.Run("RedactedMap", func(t *testing.T) {
-		in := &foov1.RedactedMap{
+		t.Parallel()
+		input := &foov1.RedactedMap{
 			Name: map[string]*foov1.RedactedMessage{
 				"foo": {
 					Name: "sensitiveInformation",
 				},
 			},
 		}
-		got := Redact(removeSensitiveData())(in.ProtoReflect())
+		got := Redact(removeSensitiveData())(input.ProtoReflect())
 		want := &foov1.RedactedMap{
 			Name: map[string]*foov1.RedactedMessage{
 				"foo": {},
@@ -69,39 +74,43 @@ func TestRedact(t *testing.T) {
 		assert.True(t, proto.Equal(want, got.Interface()))
 	})
 	t.Run("RedactedOneOf", func(t *testing.T) {
-		in := &foov1.RedactedOneOf{
+		t.Parallel()
+		input := &foov1.RedactedOneOf{
 			OneofField: &foov1.RedactedOneOf_Foo1{Foo1: 64},
 		}
-		got := Redact(removeSensitiveData())(in.ProtoReflect())
+		got := Redact(removeSensitiveData())(input.ProtoReflect())
 		want := &foov1.RedactedOneOf{}
 		assert.True(t, proto.Equal(want, got.Interface()))
 	})
 	t.Run("RedactedEnum", func(t *testing.T) {
-		in := &foov1.RedactedEnum{
+		t.Parallel()
+		input := &foov1.RedactedEnum{
 			Name: foov1.Enum_ENUM_FIRST,
 		}
-		got := Redact(removeSensitiveData())(in.ProtoReflect())
+		got := Redact(removeSensitiveData())(input.ProtoReflect())
 		want := &foov1.RedactedEnum{}
 		assert.True(t, proto.Equal(want, got.Interface()))
 	})
 	t.Run("RedactedRepeatedEnum", func(t *testing.T) {
-		in := &foov1.RedactedRepeatedEnum{
+		t.Parallel()
+		input := &foov1.RedactedRepeatedEnum{
 			Name: []foov1.Enum{
 				foov1.Enum_ENUM_FIRST,
 				foov1.Enum_ENUM_SECOND,
 				foov1.Enum_ENUM_THIRD,
 			},
 		}
-		got := Redact(removeSensitiveData())(in.ProtoReflect())
+		got := Redact(removeSensitiveData())(input.ProtoReflect())
 		want := &foov1.RedactedRepeatedEnum{}
 		assert.True(t, proto.Equal(want, got.Interface()))
 	})
 	t.Run("NotRedactedField", func(t *testing.T) {
-		in := &foov1.NotRedactedField{
+		t.Parallel()
+		input := &foov1.NotRedactedField{
 			Name: "NotSensitiveData",
 		}
-		got := Redact(removeSensitiveData())(in.ProtoReflect())
-		assert.True(t, proto.Equal(in, got.Interface()))
+		got := Redact(removeSensitiveData())(input.ProtoReflect())
+		assert.True(t, proto.Equal(input, got.Interface()))
 	})
 }
 

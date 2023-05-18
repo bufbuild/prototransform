@@ -23,6 +23,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+//nolint:revive // okay that ctx is second; prefer t to be first
 func RunSimpleCacheTests(t *testing.T, ctx context.Context, cache prototransform.Cache) map[string][]byte {
 	t.Helper()
 

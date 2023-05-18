@@ -200,7 +200,7 @@ func NewAuthInterceptor(token string) connect.Interceptor {
 
 // BufTokenFromEnvironment returns a token that can be used to download the given module from
 // the BSR by inspecting the BUF_TOKEN environment variable. The given moduleRef can be a full
-// full module reference, with or without a version, or it can just be the domain of the BSR.
+// module reference, with or without a version, or it can just be the domain of the BSR.
 func BufTokenFromEnvironment(moduleRef string) (string, error) {
 	parts := strings.SplitN(moduleRef, "/", 2)
 	envBufToken := os.Getenv("BUF_TOKEN")
