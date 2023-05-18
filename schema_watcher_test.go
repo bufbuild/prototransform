@@ -592,7 +592,6 @@ func TestSchemaWatcher_callbacks(t *testing.T) {
 	case <-time.After(3 * time.Second):
 		t.Fatalf("schema poller not invoked expected number of times; want 5, got %d", count.Load())
 	}
-	// initial resolution
 	var notice string
 	getNextNotice := func() {
 		select {
@@ -602,7 +601,7 @@ func TestSchemaWatcher_callbacks(t *testing.T) {
 		}
 	}
 	getNextNotice()
-	require.Equal(t, "update: Message", notice)
+	require.Equal(t, "update: Message", notice) // initial resolution
 	getNextNotice()
 	require.Equal(t, "error: failed to fetch schema: internal: no descriptors to return", notice)
 	getNextNotice()
