@@ -57,14 +57,14 @@ func TestAddJitter(t *testing.T) {
 			t.Parallel()
 			var min, max time.Duration
 			for i := 0; i < 10_000; i++ {
-				p := addJitter(testCase.pollingPeriod, testCase.jitter)
-				require.GreaterOrEqual(t, p, testCase.min)
-				require.LessOrEqual(t, p, testCase.max)
-				if i == 0 || p < min {
-					min = p
+				period := addJitter(testCase.pollingPeriod, testCase.jitter)
+				require.GreaterOrEqual(t, period, testCase.min)
+				require.LessOrEqual(t, period, testCase.max)
+				if i == 0 || period < min {
+					min = period
 				}
-				if i == 0 || p > max {
-					max = p
+				if i == 0 || period > max {
+					max = period
 				}
 			}
 			// After 10k iterations, with uniform distribution RNG, we could

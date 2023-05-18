@@ -24,7 +24,7 @@ import (
 // We create our own locked RNG so we won't have lock contention with the global
 // RNG that package "math/rand" creates. Also, that way we are not at the mercy
 // of other packages that might be seeding "math/rand"'s global RNG in a bad way.
-var rnd = newLockedRand()
+var rnd = newLockedRand() //nolint:gochecknoglobals
 
 func addJitter(period time.Duration, jitter float64) time.Duration {
 	factor := (rnd.Float64()*2 - 1) * jitter // produces a number between -jitter and jitter
@@ -54,6 +54,7 @@ func (s *lockedSource) Seed(seed int64) {
 }
 
 func newLockedRand() *rand.Rand {
+	//nolint:gosec // don't need secure RNG for this and prefer something that can't exhaust entropy
 	return rand.New(&lockedSource{src: rand.NewSource(int64(seed()))})
 }
 

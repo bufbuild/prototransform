@@ -37,7 +37,7 @@ var (
 	ErrSchemaWatcherStopped = errors.New("SchemaWatcher was stopped")
 	// ErrSchemaWatcherNotReady is an error returned from the various Find*
 	// methods of SchemaWatcher an initial schema has not yet been downloaded (or
-	// loaded from cache)
+	// loaded from cache).
 	ErrSchemaWatcherNotReady = errors.New("SchemaWatcher not ready")
 )
 
@@ -126,19 +126,19 @@ func NewSchemaWatcher(ctx context.Context, config *SchemaWatcherConfig) (*Schema
 		cacheKey = schemaID
 		if len(syms) > 0 {
 			// Add a strong hash of symbols to the end.
-			var sb strings.Builder
-			sb.WriteString(cacheKey)
-			sb.WriteByte('_')
+			var builder strings.Builder
+			builder.WriteString(cacheKey)
+			builder.WriteByte('_')
 			sha := sha256.New()
 			for _, sym := range syms {
 				sha.Write(([]byte)(sym))
 			}
-			hx := hex.NewEncoder(&sb)
+			hx := hex.NewEncoder(&builder)
 			if _, err := hx.Write(sha.Sum(nil)); err != nil {
 				// should never happen...
 				return nil, fmt.Errorf("failed to generate hash of symbols for cache key: %w", err)
 			}
-			cacheKey = sb.String()
+			cacheKey = builder.String()
 		}
 	}
 
@@ -188,7 +188,7 @@ func (s *SchemaWatcher) updateResolver(ctx context.Context) (err error) {
 		}()
 	}
 
-	schema, schemaVersion, schemaTs, err := s.getFileDescriptorSet(ctx)
+	schema, schemaVersion, schemaTimestamp, err := s.getFileDescriptorSet(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to fetch schema: %w", err)
 	}
@@ -198,8 +198,8 @@ func (s *SchemaWatcher) updateResolver(ctx context.Context) (err error) {
 	s.resolverMu.RUnlock()
 
 	if prevSchema != nil {
-		if schemaTs.Before(prevTimestamp) {
-			// Only possible if schemaTs is loaded from cache entry that is
+		if schemaTimestamp.Before(prevTimestamp) {
+			// Only possible if schemaTimestamp is loaded from cache entry that is
 			// older than last successful load. If that happens, just leave
 			// the existing resolver in place.
 			return nil
@@ -235,7 +235,7 @@ func (s *SchemaWatcher) updateResolver(ctx context.Context) (err error) {
 	s.resolverMu.Lock()
 	defer s.resolverMu.Unlock()
 	s.resolver = resolver
-	s.resolveTime = schemaTs
+	s.resolveTime = schemaTimestamp
 	s.resolvedSchema = schema
 	s.resolvedVersion = schemaVersion
 	s.resolverErr = nil
@@ -275,7 +275,7 @@ func (s *SchemaWatcher) initialUpdateResolver(ctx context.Context, pollingPeriod
 				return false
 			case <-timer.C:
 			}
-			delay = delay * 2 // exponential backoff
+			delay *= 2 // exponential backoff
 		}
 
 		// we never wait longer than configured polling period, so we only apply

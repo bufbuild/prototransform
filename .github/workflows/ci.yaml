@@ -3,8 +3,11 @@ on: push
 permissions:
   contents: read
 jobs:
-  lint:
+  ci:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version: [1.19.x, 1.20.x]
     steps:
       - name: checkout
         uses: actions/checkout@v3
@@ -13,57 +16,21 @@ jobs:
       - name: setup-go
         uses: actions/setup-go@v4
         with:
-          go-version: 1.19.x
-          check-latest: true
-          cache: true
-      - name: Lint
-        # Often, lint & gofmt guidelines depend on the Go version. To prevent
-        # conflicting guidance, run only on the most recent supported version.
-        # For the same reason, only check generated code on the most recent
-        # supported version.
-        if: matrix.go-version == '1.19.x'
-        run: make lint
-  generate:
-    runs-on: ubuntu-latest
-    steps:
-      - name: checkout
-        uses: actions/checkout@v3
+          go-version: ${{ matrix.go-version }}
+      - name: setup-buf
+        uses: bufbuild/buf-setup-action@v1.18.0
+      - name: cache
+        uses: actions/cache@v3
         with:
-          fetch-depth: 0
-      - name: setup-go
-        uses: actions/setup-go@v4
-        with:
-          go-version: 1.19.x
-          check-latest: true
-          cache: true
-      - uses: bufbuild/buf-setup-action@v1.18.0
-        with:
-          github_token: ${{ github.token }}
-      - name: Generate
-        env:
-          BUF_TOKEN: ${{ secrets.BUF_TOKEN }}
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-connect-ci-${{ hashFiles('**/go.sum') }}
+          restore-keys: ${{ runner.os }}-connect-ci-
+      - name: generate
         run: make generate && make checkgenerate
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - name: checkout
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-      - name: setup-go
-        uses: actions/setup-go@v4
-        with:
-          go-version: 1.19.x
-          check-latest: true
-          cache: true
-      - uses: bufbuild/buf-setup-action@v1.18.0
-        with:
-          github_token: ${{ github.token }}
-          buf_user: ${{ secrets.BUF_USER }}
-          buf_api_token: ${{ secrets.BUF_TOKEN }}
       - name: test
         env:
-          GOPRIVATE: buf.build/gen/go
-          GONOSUMDB: buf.build/gen/go
           BUF_TOKEN: ${{ secrets.BUF_TOKEN }}
         run: make test
+      - name: lint
+        if: matrix.go-version == '1.20.x'
+        run: make lint

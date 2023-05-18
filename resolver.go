@@ -45,20 +45,20 @@ type resolver struct {
 // The given FileDescriptors must be self-contained, that is they must contain all imports.
 // This can NOT be guaranteed for FileDescriptorSets given over the wire, and can only be guaranteed from builds.
 func newResolver(fileDescriptors *descriptorpb.FileDescriptorSet) (*resolver, error) {
-	var r resolver
+	var result resolver
 	// TODO(TCN-925): maybe should reparse unrecognized fields in fileDescriptors after creating resolver?
 	if len(fileDescriptors.File) == 0 {
-		return &r, nil
+		return &result, nil
 	}
 	files, err := protodesc.FileOptions{AllowUnresolvable: true}.NewFiles(fileDescriptors)
 	if err != nil {
 		return nil, err
 	}
-	r.Files = files
-	r.Types = &protoregistry.Types{}
+	result.Files = files
+	result.Types = &protoregistry.Types{}
 	var rangeErr error
 	files.RangeFiles(func(fileDescriptor protoreflect.FileDescriptor) bool {
-		if err := registerTypes(r.Types, fileDescriptor); err != nil {
+		if err := registerTypes(result.Types, fileDescriptor); err != nil {
 			rangeErr = err
 			return false
 		}
@@ -67,7 +67,7 @@ func newResolver(fileDescriptors *descriptorpb.FileDescriptorSet) (*resolver, er
 	if rangeErr != nil {
 		return nil, rangeErr
 	}
-	return &r, nil
+	return &result, nil
 }
 
 type typeContainer interface {

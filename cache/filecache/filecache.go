@@ -91,14 +91,14 @@ func New(config Config) (prototransform.Cache, error) {
 		return nil, fmt.Errorf("%s is not a directory", path)
 	}
 	testFile := filepath.Join(path, ".test")
-	f, err := os.OpenFile(testFile, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0600)
+	file, err := os.OpenFile(testFile, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0600)
 	if err != nil {
 		if os.IsPermission(err) {
 			return nil, fmt.Errorf("insufficient permission to create file in %s", path)
 		}
 		return nil, fmt.Errorf("failed to create file in %s: %w", path, err)
 	}
-	closeErr := f.Close()
+	closeErr := file.Close()
 	rmErr := os.Remove(testFile)
 	if closeErr != nil {
 		return nil, closeErr
@@ -129,22 +129,22 @@ func (c *cache) fileNameForKey(key string) string {
 }
 
 func sanitize(s string) string {
-	var sb strings.Builder
-	hexWriter := hex.NewEncoder(&sb)
+	var builder strings.Builder
+	hexWriter := hex.NewEncoder(&builder)
 	var buf [1]byte
 	for i, length := 0, len(s); i < length; i++ {
-		b := s[i]
+		char := s[i]
 		switch {
-		case b >= 'a' && b <= 'z',
-			b >= 'A' && b <= 'Z',
-			b >= '0' && b <= '9',
-			b == '.' || b == '-' || b == '_':
-			sb.WriteByte(b)
+		case char >= 'a' && char <= 'z',
+			char >= 'A' && char <= 'Z',
+			char >= '0' && char <= '9',
+			char == '.' || char == '-' || char == '_':
+			builder.WriteByte(char)
 		default:
-			sb.WriteByte('%')
-			buf[0] = b
+			builder.WriteByte('%')
+			buf[0] = char
 			_, _ = hexWriter.Write(buf[:])
 		}
 	}
-	return sb.String()
+	return builder.String()
 }

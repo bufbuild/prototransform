@@ -173,11 +173,11 @@ func TestSanitize(t *testing.T) {
 
 func checkFiles(t *testing.T, dir string, mode fs.FileMode, names map[string]struct{}) {
 	t.Helper()
-	err := fs.WalkDir(os.DirFS(dir), ".", func(path string, d fs.DirEntry, err error) error {
+	err := fs.WalkDir(os.DirFS(dir), ".", func(path string, dirEntry fs.DirEntry, err error) error {
 		if !assert.NoError(t, err) {
 			return nil
 		}
-		if d.IsDir() {
+		if dirEntry.IsDir() {
 			if path == "." {
 				return nil
 			}
@@ -189,7 +189,7 @@ func checkFiles(t *testing.T, dir string, mode fs.FileMode, names map[string]str
 			return nil
 		}
 		delete(names, path)
-		info, err := d.Info()
+		info, err := dirEntry.Info()
 		if !assert.NoErrorf(t, err, "failed to get file info for %s", path) {
 			return nil
 		}

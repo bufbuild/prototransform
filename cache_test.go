@@ -27,6 +27,7 @@ import (
 )
 
 func TestCacheEntryRoundTrip(t *testing.T) {
+	t.Parallel()
 	descriptors := &descriptorpb.FileDescriptorSet{
 		File: []*descriptorpb.FileDescriptorProto{
 			{
@@ -66,41 +67,53 @@ func TestCacheEntryRoundTrip(t *testing.T) {
 func TestIsSuperSet(t *testing.T) {
 	t.Parallel()
 	t.Run("both empty", func(t *testing.T) {
+		t.Parallel()
 		assert.True(t, isSuperSet(nil, nil))
 		assert.True(t, isSuperSet([]string{}, nil))
 		assert.True(t, isSuperSet(nil, make([]string, 0, 10)))
 	})
 	t.Run("superset is empty", func(t *testing.T) {
+		t.Parallel()
 		assert.False(t, isSuperSet(nil, []string{"abc"}))
 	})
 	t.Run("subset is empty", func(t *testing.T) {
+		t.Parallel()
 		assert.False(t, isSuperSet([]string{"abc"}, nil))
 	})
 	t.Run("same", func(t *testing.T) {
+		t.Parallel()
 		assert.True(t, isSuperSet([]string{"abc", "def", "ghi", "xyz"}, []string{"abc", "def", "ghi", "xyz"}))
 	})
 	t.Run("is superset (1)", func(t *testing.T) {
+		t.Parallel()
 		assert.True(t, isSuperSet([]string{"abc", "def", "ghi", "xyz"}, []string{"abc"}))
 	})
 	t.Run("is superset (2)", func(t *testing.T) {
+		t.Parallel()
 		assert.True(t, isSuperSet([]string{"abc", "def", "ghi", "xyz"}, []string{"abc", "ghi"}))
 	})
 	t.Run("is superset (3)", func(t *testing.T) {
+		t.Parallel()
 		assert.True(t, isSuperSet([]string{"abc", "def", "ghi", "xyz"}, []string{"abc", "xyz"}))
 	})
 	t.Run("is superset (4)", func(t *testing.T) {
+		t.Parallel()
 		assert.True(t, isSuperSet([]string{"abc", "def", "ghi", "xyz"}, []string{"xyz"}))
 	})
 	t.Run("is subset (1)", func(t *testing.T) {
+		t.Parallel()
 		assert.False(t, isSuperSet([]string{"abc"}, []string{"abc", "def", "ghi", "xyz"}))
 	})
 	t.Run("is subset (2)", func(t *testing.T) {
+		t.Parallel()
 		assert.False(t, isSuperSet([]string{"abc", "ghi"}, []string{"abc", "def", "ghi", "xyz"}))
 	})
 	t.Run("is subset (3)", func(t *testing.T) {
+		t.Parallel()
 		assert.False(t, isSuperSet([]string{"abc", "xyz"}, []string{"abc", "def", "ghi", "xyz"}))
 	})
 	t.Run("is subset (4)", func(t *testing.T) {
+		t.Parallel()
 		assert.False(t, isSuperSet([]string{"xyz"}, []string{"abc", "def", "ghi", "xyz"}))
 	})
 }
