@@ -521,6 +521,100 @@ func TestSchemaWatcher_UsingCache(t *testing.T) {
 	})
 }
 
+func TestSchemaWatcher_callbacks(t *testing.T) {
+	t.Parallel()
+
+	var descriptors atomic.Pointer[descriptorpb.FileDescriptorSet]
+	descriptors.Store(fakeFileDescriptorSet())
+	var count atomic.Int32
+	done := make(chan struct{})
+	svc := &fakeFileDescriptorSetService{
+		getFileDescriptorSetFunc: func(context.Context, *connect.Request[reflectv1beta1.GetFileDescriptorSetRequest]) (*connect.Response[reflectv1beta1.GetFileDescriptorSetResponse], error) {
+			result := descriptors.Load()
+			switch count.Add(1) {
+			case 1:
+				// remove so next call returns error
+				descriptors.Store(nil)
+			case 2:
+				// back to previous (should not result in a callback since schema unchanged)
+				descriptors.Store(fakeFileDescriptorSet())
+			case 3:
+				// now change descriptors for next call
+				newDescriptors := fakeFileDescriptorSet()
+				newDescriptors.File[0].MessageType[0].Name = proto.String("NewMessageName")
+				descriptors.Store(newDescriptors)
+			case 4:
+				// do nothing, no change so should not result in a callback
+			case 5:
+				// let test know we've seen 'em all
+				close(done)
+			}
+			if result == nil {
+				return nil, connect.NewError(connect.CodeInternal, errors.New("no descriptors to return"))
+			}
+			return connect.NewResponse(&reflectv1beta1.GetFileDescriptorSetResponse{
+				FileDescriptorSet: result,
+				Version:           "main",
+			}), nil
+		},
+	}
+
+	notices := make(chan string, 4)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	var watcher *SchemaWatcher
+	var err error
+	watcher, err = NewSchemaWatcher(ctx, &SchemaWatcherConfig{
+		SchemaPoller:  NewSchemaPoller(svc, "foo/bar", ""),
+		PollingPeriod: 50 * time.Millisecond,
+		OnUpdate: func() {
+			fd, err := watcher.FindFileByPath("test.proto")
+			if err != nil {
+				t.Fatalf("schema missing file test.proto: %v", err)
+			}
+			msg := fd.Messages().Get(0)
+			select {
+			case notices <- fmt.Sprintf("update: %s", msg.Name()):
+			default:
+			}
+		},
+		OnError: func(err error) {
+			select {
+			case notices <- fmt.Sprintf("error: %v", err):
+			default:
+			}
+		},
+	})
+	require.NoError(t, err)
+	select {
+	case <-done:
+	case <-time.After(3 * time.Second):
+		t.Fatalf("schema poller not invoked expected number of times; want 5, got %d", count.Load())
+	}
+	// initial resolution
+	var notice string
+	getNextNotice := func() {
+		select {
+		case notice = <-notices:
+		default:
+			t.Fatal("callback not invoked")
+		}
+	}
+	getNextNotice()
+	require.Equal(t, "update: Message", notice)
+	getNextNotice()
+	require.Equal(t, "error: failed to fetch schema: internal: no descriptors to return", notice)
+	getNextNotice()
+	require.Equal(t, "update: NewMessageName", notice)
+	// should be no more
+	select {
+	case notice = <-notices:
+		t.Fatal("extra callback invocation")
+	default:
+	}
+}
+
 type fakeFileDescriptorSetService struct {
 	reflectv1beta1connect.UnimplementedFileDescriptorSetServiceHandler
 	getFileDescriptorSetFunc func(context.Context, *connect.Request[reflectv1beta1.GetFileDescriptorSetRequest]) (*connect.Response[reflectv1beta1.GetFileDescriptorSetResponse], error)

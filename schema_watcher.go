@@ -178,7 +178,7 @@ func (s *SchemaWatcher) updateResolver(ctx context.Context) (err error) {
 					defer s.callbackMu.Unlock()
 					s.callback()
 				}()
-			} else if !errors.Is(err, ErrSchemaNotModified) && s.errCallback != nil {
+			} else if err != nil && !errors.Is(err, ErrSchemaNotModified) && s.errCallback != nil {
 				go func() {
 					s.callbackMu.Lock()
 					defer s.callbackMu.Unlock()
