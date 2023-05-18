@@ -54,12 +54,14 @@ import (
 	}
 	defer subs.Shutdown(ctx)
 	// Supply auth credentials to the BSR
-	fileDescriptorSetServiceClient := prototransform.NewDefaultFileDescriptorSetServiceClient("<bsr-token>")
+	client := prototransform.NewDefaultFileDescriptorSetServiceClient("<bsr-token>")
 	// Configure the module for schema watcher
 	cfg := &prototransform.Config{
-		Client:  fileDescriptorSetServiceClient,
-		Module:  "buf.build/someuser/somerepo", // BSR module
-		Version: "some-tag", // tag or draft name or leave blank for "latest"
+		SchemaPoller: prototransform.NewSchemaPoller(
+			client,
+			"buf.build/someuser/somerepo", // BSR module
+			"some-tag", // tag or draft name or leave blank for "latest"
+		),
 	}
 	watcher, err := prototransform.NewSchemaWatcher(ctx, cfg)
 	if err != nil {
