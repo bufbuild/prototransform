@@ -563,13 +563,12 @@ func TestSchemaWatcher_callbacks(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	var watcher *SchemaWatcher
-	var err error
-	watcher, err = NewSchemaWatcher(ctx, &SchemaWatcherConfig{
+	var watcherPtr atomic.Pointer[SchemaWatcher]
+	watcher, err := NewSchemaWatcher(ctx, &SchemaWatcherConfig{
 		SchemaPoller:  NewSchemaPoller(svc, "foo/bar", ""),
 		PollingPeriod: 50 * time.Millisecond,
 		OnUpdate: func() {
-			fd, err := watcher.FindFileByPath("test.proto")
+			fd, err := watcherPtr.Load().FindFileByPath("test.proto")
 			if err != nil {
 				t.Fatalf("schema missing file test.proto: %v", err)
 			}
@@ -586,6 +585,7 @@ func TestSchemaWatcher_callbacks(t *testing.T) {
 			}
 		},
 	})
+	watcherPtr.Store(watcher)
 	require.NoError(t, err)
 	select {
 	case <-done:
