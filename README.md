@@ -150,10 +150,15 @@ the form:
 
 ```go
 type Cache interface {
-    Load(key string) ([]byte, error)
-    Save(key string, data []byte) error
+    Load(ctx context.Context, key string) ([]byte, error)
+    Save(ctx context.Context, key string, data []byte) error
 }
 ```
+
+This repo provides three implementations that you can use:
+1. [`filecache`](https://pkg.go.dev/github.com/bufbuild/prototransform/cache/filecache): Cache schemas in local files.
+2. [`rediscache`](https://pkg.go.dev/github.com/bufbuild/prototransform/cache/rediscache): Cache schemas in a shared Redis server.
+3. [`memcache`](https://pkg.go.dev/github.com/bufbuild/prototransform/cache/memcache): Cache schemas in a shared memcached server.
 
 ### Filters
 
@@ -193,6 +198,10 @@ converter.Filters = prototransform.Filters{filter}
 
 Now, any attribute marked as "sensitive" will be omitted from the output
 produced by the converter.
+
+This package also includes a predicate named `HasDebugRedactOption` that
+can be used to redact data for fields that have the `debug_redact` standard
+option set (this option was introduced in `protoc` v22.0).
 
 ## Community
 
