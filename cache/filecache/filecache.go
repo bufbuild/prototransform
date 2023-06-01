@@ -35,6 +35,8 @@ import (
 	"github.com/bufbuild/prototransform"
 )
 
+// Config represents the configuration parameters used to
+// create a new file-system-backed cache.
 type Config struct {
 	// Required: the folder in which cached files live.
 	Path string
@@ -54,8 +56,8 @@ type Config struct {
 	FileMode fs.FileMode
 }
 
-// New creates a new cache that stores items in files. The given
-// path must be a directory, in which the files will be stored.
+// New creates a new file-system-backed cache with the given
+// configuration.
 func New(config Config) (prototransform.Cache, error) {
 	// validate config
 	if config.Path == "" {

@@ -51,6 +51,7 @@ type SchemaWatcher struct {
 	includeSymbols []string
 	cacheKey       string
 	resolveNow     chan struct{}
+	lease          Lease
 
 	// used to prevent concurrent calls to cache.Save, which could
 	// otherwise potentially result in a known-stale value in the cache.
@@ -143,10 +144,21 @@ func NewSchemaWatcher(ctx context.Context, config *SchemaWatcherConfig) (*Schema
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
+	var lease Lease
+	if config.Leaser != nil {
+		leaseHolder, err := getLeaseHolder(config.CurrentProcess)
+		if err != nil {
+			cancel()
+			return nil, err
+		}
+		lease = config.Leaser.NewLease(ctx, schemaID, leaseHolder)
+	}
+
 	schemaWatcher := &SchemaWatcher{
 		poller:         config.SchemaPoller,
 		schemaID:       schemaID,
 		includeSymbols: syms,
+		lease:          lease,
 		cacheKey:       cacheKey,
 		callback:       config.OnUpdate,
 		errCallback:    config.OnError,
@@ -534,9 +546,9 @@ func (s *SchemaWatcher) getFileDescriptorSet(ctx context.Context) (*descriptorpb
 	s.resolverMu.RLock()
 	currentVersion := s.resolvedVersion
 	s.resolverMu.RUnlock()
-	descriptors, version, err := s.poller.GetSchema(ctx, s.includeSymbols, currentVersion)
+	descriptors, version, err := s.poll(ctx, currentVersion)
 	respTime := time.Now()
-	if err != nil {
+	if err != nil { //nolint:nestif
 		if errors.Is(err, ErrSchemaNotModified) || s.cache == nil {
 			return nil, "", time.Time{}, err
 		}
@@ -551,6 +563,10 @@ func (s *SchemaWatcher) getFileDescriptorSet(ctx context.Context) (*descriptorpb
 		}
 		if !isCorrectCacheEntry(msg, s.schemaID, s.includeSymbols) {
 			// Cache key collision! Do not use this result!
+			isLeaseError := errors.As(err, new(leaseError))
+			if isLeaseError {
+				return nil, "", time.Time{}, fmt.Errorf("%w (failed to load cached value: stored entry is for wrong schema)", err)
+			}
 			return nil, "", time.Time{}, err
 		}
 		return msg.GetSchema().GetDescriptors(), msg.GetSchema().GetVersion(), msg.GetSchemaTimestamp().AsTime(), nil
@@ -579,4 +595,46 @@ func (s *SchemaWatcher) getFileDescriptorSet(ctx context.Context) (*descriptorpb
 		}()
 	}
 	return descriptors, version, respTime, nil
+}
+
+func (s *SchemaWatcher) poll(ctx context.Context, currentVersion string) (*descriptorpb.FileDescriptorSet, string, error) {
+	if s.lease != nil {
+		held, err := s.lease.IsHeld()
+		if err != nil {
+			return nil, "", leaseHolderUnknownError{err: err}
+		}
+		if !held {
+			return nil, "", leaseNotHeldError{}
+		}
+	}
+	return s.poller.GetSchema(ctx, s.includeSymbols, currentVersion)
+}
+
+type leaseError interface {
+	leaseError()
+}
+
+var _ leaseError = leaseNotHeldError{}
+var _ leaseError = leaseHolderUnknownError{}
+
+type leaseNotHeldError struct{}
+
+func (e leaseNotHeldError) leaseError() {}
+
+func (e leaseNotHeldError) Error() string {
+	return "cannot poll for schema because current process is not leaseholder"
+}
+
+type leaseHolderUnknownError struct {
+	err error
+}
+
+func (e leaseHolderUnknownError) leaseError() {}
+
+func (e leaseHolderUnknownError) Error() string {
+	return fmt.Sprintf("cannot poll for scheme because leaseholder is unknown: %v", e.err)
+}
+
+func (e leaseHolderUnknownError) Unwrap() error {
+	return e.err
 }

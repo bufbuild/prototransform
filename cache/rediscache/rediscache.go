@@ -26,12 +26,15 @@ import (
 	"github.com/gomodule/redigo/redis"
 )
 
+// Config represents the configuration parameters used to
+// create a new Redis-backed cache.
 type Config struct {
 	Client     *redis.Pool
 	KeyPrefix  string
 	Expiration time.Duration
 }
 
+// New creates a new Redis-backed cache with the given configuration.
 func New(config Config) (prototransform.Cache, error) {
 	// validate config
 	if config.Client == nil {
