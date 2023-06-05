@@ -3,10 +3,10 @@ module github.com/bufbuild/prototransform
 go 1.19
 
 require (
-	buf.build/gen/go/bufbuild/reflect/bufbuild/connect-go v1.7.0-20230420145030-e29739ab7137.1
+	buf.build/gen/go/bufbuild/reflect/bufbuild/connect-go v1.8.0-20230420145030-e29739ab7137.1
 	buf.build/gen/go/bufbuild/reflect/protocolbuffers/go v1.30.0-20230420145030-e29739ab7137.1
 	github.com/bradfitz/gomemcache v0.0.0-20230124162541-5f7a7d875746
-	github.com/bufbuild/connect-go v1.7.0
+	github.com/bufbuild/connect-go v1.8.0
 	github.com/gomodule/redigo v1.8.9
 	github.com/google/go-cmp v0.5.9
 	github.com/pkg/errors v0.9.1
