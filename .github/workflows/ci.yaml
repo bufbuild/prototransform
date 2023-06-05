@@ -18,7 +18,7 @@ jobs:
         with:
           go-version: ${{ matrix.go-version }}
       - name: setup-buf
-        uses: bufbuild/buf-setup-action@v1.19.0
+        uses: bufbuild/buf-setup-action@v1.20.0
       - name: cache
         uses: actions/cache@v3
         with:
