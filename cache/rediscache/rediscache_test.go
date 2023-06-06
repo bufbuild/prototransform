@@ -39,6 +39,11 @@ func TestRedisCache(t *testing.T) {
 			return redis.Dial("tcp", "localhost:6379")
 		},
 	}
+	t.Cleanup(func() {
+		err := pool.Close()
+		require.NoError(t, err)
+	})
+
 	testCases := []struct {
 		name   string
 		expiry time.Duration

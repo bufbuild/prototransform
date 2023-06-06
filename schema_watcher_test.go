@@ -58,6 +58,28 @@ func TestNewSchemaWatcher(t *testing.T) {
 		assert.EqualError(t, err, "polling period duration cannot be negative")
 		assert.Nil(t, got)
 	})
+	t.Run("jitter negative", func(t *testing.T) {
+		t.Parallel()
+		config := &SchemaWatcherConfig{
+			SchemaPoller: poller,
+			Jitter:       -1,
+		}
+		got, err := NewSchemaWatcher(ctx, config)
+		require.Error(t, err)
+		assert.EqualError(t, err, "jitter cannot be negative")
+		assert.Nil(t, got)
+	})
+	t.Run("jitter > 1", func(t *testing.T) {
+		t.Parallel()
+		config := &SchemaWatcherConfig{
+			SchemaPoller: poller,
+			Jitter:       1.1,
+		}
+		got, err := NewSchemaWatcher(ctx, config)
+		require.Error(t, err)
+		assert.EqualError(t, err, "jitter cannot be greater than 1.0 (100%)")
+		assert.Nil(t, got)
+	})
 	t.Run("invalid symbol name", func(t *testing.T) {
 		t.Parallel()
 		config := &SchemaWatcherConfig{
@@ -67,6 +89,20 @@ func TestNewSchemaWatcher(t *testing.T) {
 		got, err := NewSchemaWatcher(ctx, config)
 		require.Error(t, err)
 		assert.EqualError(t, err, `"$poop" is not a valid symbol name`)
+		assert.Nil(t, got)
+	})
+	t.Run("leaser without cache", func(t *testing.T) {
+		t.Parallel()
+		type leaser struct {
+			Leaser
+		}
+		config := &SchemaWatcherConfig{
+			SchemaPoller: poller,
+			Leaser:       leaser{},
+		}
+		got, err := NewSchemaWatcher(ctx, config)
+		require.Error(t, err)
+		assert.EqualError(t, err, "leaser config should only be present when cache config also present")
 		assert.Nil(t, got)
 	})
 	t.Run("successfully create schema watcher with default polling period", func(t *testing.T) {
@@ -523,6 +559,74 @@ func TestSchemaWatcher_UsingCache(t *testing.T) {
 	})
 }
 
+func TestSchemaWatcher_UsingLeaser(t *testing.T) {
+	t.Parallel()
+	svc := newFakeFileDescriptorSetService()
+	var badServiceCalls atomic.Int32
+	shouldNotUseService := &fakeFileDescriptorSetService{
+		getFileDescriptorSetFunc: func(context.Context, *connect.Request[reflectv1beta1.GetFileDescriptorSetRequest]) (*connect.Response[reflectv1beta1.GetFileDescriptorSetResponse], error) {
+			badServiceCalls.Add(1)
+			return nil, connect.NewError(connect.CodeUnavailable, errors.New("unavailable"))
+		},
+	}
+	cached := make(chan struct{}, 1)
+	cache := &fakeCache{
+		saveHook: func() {
+			select {
+			case cached <- struct{}{}:
+			default:
+			}
+		},
+	}
+	leaser := &fakeLeaser{}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	leader, err := NewSchemaWatcher(ctx, &SchemaWatcherConfig{
+		SchemaPoller: NewSchemaPoller(svc, "foo/bar", "main"),
+		Cache:        cache,
+		Leaser:       leaser,
+	})
+	require.NoError(t, err)
+
+	// Leader becomes ready without cache.
+	awaitCtx, awaitCancel := context.WithTimeout(ctx, time.Second)
+	defer awaitCancel()
+	err = leader.AwaitReady(awaitCtx)
+	require.NoError(t, err)
+
+	// make sure leader's background save to cache is complete
+	select {
+	case <-time.After(time.Second):
+		require.FailNow(t, "cache entry never saved")
+	case <-cached:
+	}
+
+	// Followers all use the cache and will not poll because they don't have lease.
+	for i := 0; i < 3; i++ {
+		follower, err := NewSchemaWatcher(ctx, &SchemaWatcherConfig{
+			SchemaPoller: NewSchemaPoller(shouldNotUseService, "foo/bar", "main"),
+			Cache:        cache,
+			Leaser:       leaser,
+		})
+		require.NoError(t, err)
+
+		// Followers become ready from the cache.
+		awaitCtx, awaitCancel := context.WithTimeout(ctx, time.Second)
+		defer awaitCancel()
+		err = follower.AwaitReady(awaitCtx)
+		require.NoError(t, err)
+	}
+
+	// Followers shouldn't even try to poll since they don't have lease.
+	require.Equal(t, int32(0), badServiceCalls.Load())
+
+	// One cache load for each follower
+	loads := cache.getLoadCalls()
+	require.Equal(t, 3, len(loads))
+}
+
 func TestSchemaWatcher_callbacks(t *testing.T) {
 	t.Parallel()
 
@@ -801,4 +905,71 @@ func (f *fakeCache) getSaveCalls() []fakeCacheOp {
 	clone := make([]fakeCacheOp, len(f.saves))
 	copy(clone, f.saves)
 	return clone
+}
+
+type fakeLeaser struct {
+	mu     sync.Mutex
+	leases map[string][]*fakeLease
+}
+
+func (f *fakeLeaser) NewLease(ctx context.Context, leaseName string, leaseHolder []byte) Lease {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.leases == nil {
+		f.leases = map[string][]*fakeLease{}
+	}
+	ctx, cancel := context.WithCancel(ctx)
+	lease := &fakeLease{cancel: cancel, leaser: f, leaseName: leaseName, leaseHolder: leaseHolder}
+	f.leases[leaseName] = append(f.leases[leaseName], lease)
+	go func() {
+		<-ctx.Done()
+		f.removeLease(lease)
+	}()
+	return lease
+}
+
+func (f *fakeLeaser) getLeases(name string) []*fakeLease {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	leases := f.leases[name]
+	if len(leases) == 0 {
+		return nil
+	}
+	clone := make([]*fakeLease, len(leases))
+	copy(clone, leases)
+	return clone
+}
+
+func (f *fakeLeaser) removeLease(leaseToRemove *fakeLease) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	leases := f.leases[leaseToRemove.leaseName]
+	newLeases := make([]*fakeLease, 0, len(leases))
+	for i := range leases {
+		if leases[i] == leaseToRemove {
+			continue
+		}
+		newLeases = append(newLeases, leases[i])
+	}
+	f.leases[leaseToRemove.leaseName] = newLeases
+}
+
+type fakeLease struct {
+	cancel      context.CancelFunc
+	leaser      *fakeLeaser
+	leaseName   string
+	leaseHolder []byte
+}
+
+func (f *fakeLease) IsHeld() (bool, error) {
+	leases := f.leaser.getLeases(f.leaseName)
+	return len(leases) > 0 && leases[0] == f, nil
+}
+
+func (f *fakeLease) SetCallbacks(_, _ func()) {
+	// ignore
+}
+
+func (f *fakeLease) Cancel() {
+	f.cancel()
 }

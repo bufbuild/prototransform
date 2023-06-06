@@ -25,12 +25,15 @@ import (
 	"github.com/bufbuild/prototransform"
 )
 
+// Config represents the configuration parameters used to
+// create a new memcached-backed cache.
 type Config struct {
 	Client            *memcache.Client
 	KeyPrefix         string
 	ExpirationSeconds int32
 }
 
+// New creates a new memcached-backed cache with the given configuration.
 func New(config Config) (prototransform.Cache, error) {
 	// validate config
 	if config.Client == nil {
