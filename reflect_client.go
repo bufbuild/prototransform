@@ -26,7 +26,7 @@ import (
 )
 
 // NewDefaultFileDescriptorSetServiceClient will create an authenticated connection to the
-// public Buf Schema Registry (BSR) at https://api.buf.build. If the given token is empty,
+// public Buf Schema Registry (BSR) at https://buf.build. If the given token is empty,
 // the BUF_TOKEN environment variable will be consulted.
 //
 // If you require a connection to a different BSR instance, create your own
@@ -39,7 +39,7 @@ func NewDefaultFileDescriptorSetServiceClient(token string) reflectv1beta1connec
 		token, _ = BufTokenFromEnvironment("buf.build")
 	}
 	return reflectv1beta1connect.NewFileDescriptorSetServiceClient(
-		http.DefaultClient, "https://api.buf.build",
+		http.DefaultClient, "https://buf.build",
 		connect.WithInterceptors(NewAuthInterceptor(token)),
 	)
 }
