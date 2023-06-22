@@ -73,14 +73,20 @@ type bufReflectPoller struct {
 	module, version string
 }
 
-func (b *bufReflectPoller) GetSchema(ctx context.Context, symbols []string, _ string) (*descriptorpb.FileDescriptorSet, string, error) {
+func (b *bufReflectPoller) GetSchema(ctx context.Context, symbols []string, currentVersion string) (*descriptorpb.FileDescriptorSet, string, error) {
 	req := connect.NewRequest(&reflectv1beta1.GetFileDescriptorSetRequest{
 		Module:  b.module,
 		Version: b.version,
 		Symbols: symbols,
 	})
+	if currentVersion != "" {
+		req.Header().Set("If-None-Match", currentVersion)
+	}
 	resp, err := b.client.GetFileDescriptorSet(ctx, req)
 	if err != nil {
+		if currentVersion != "" && connect.IsNotModifiedError(err) {
+			return nil, "", ErrSchemaNotModified
+		}
 		return nil, "", err
 	}
 	return resp.Msg.FileDescriptorSet, resp.Msg.Version, err
