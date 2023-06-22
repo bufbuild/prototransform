@@ -16,8 +16,6 @@ syntax = "proto3";
 
 package buf.prototransform.v1alpha1;
 
-import "google/protobuf/timestamp.proto";
-
 // LeaseEntry represents the serialized form of a lease.
 message LeaseEntry {
   // Description of the process that holds the lease.

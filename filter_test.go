@@ -64,11 +64,19 @@ func TestRedact(t *testing.T) {
 					Name: "sensitiveInformation",
 				},
 			},
+			NotRedacted: map[string]string{
+				"foo":  "bar",
+				"frob": "nitz",
+			},
 		}
 		got := Redact(removeSensitiveData())(input.ProtoReflect())
 		want := &foov1.RedactedMap{
 			Name: map[string]*foov1.RedactedMessage{
 				"foo": {},
+			},
+			NotRedacted: map[string]string{
+				"foo":  "bar",
+				"frob": "nitz",
 			},
 		}
 		assert.True(t, proto.Equal(want, got.Interface()))
@@ -99,9 +107,10 @@ func TestRedact(t *testing.T) {
 				foov1.Enum_ENUM_SECOND,
 				foov1.Enum_ENUM_THIRD,
 			},
+			NotRedacted: []int32{1, 2, 3},
 		}
 		got := Redact(removeSensitiveData())(input.ProtoReflect())
-		want := &foov1.RedactedRepeatedEnum{}
+		want := &foov1.RedactedRepeatedEnum{NotRedacted: []int32{1, 2, 3}}
 		assert.True(t, proto.Equal(want, got.Interface()))
 	})
 	t.Run("NotRedactedField", func(t *testing.T) {

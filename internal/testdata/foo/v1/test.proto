@@ -24,6 +24,7 @@ message RedactedRepeatedField {
 
 message RedactedMap {
   map<string, RedactedMessage> name = 1;
+  map<string, string> not_redacted = 2;
 }
 
 message RedactedOneOf {
@@ -35,11 +36,12 @@ message RedactedOneOf {
 }
 
 message RedactedEnum {
-  Enum name = 1[(sensitive) = true];
+  Enum name = 1 [(sensitive) = true];
 }
 
 message RedactedRepeatedEnum {
-  repeated Enum name = 1[(sensitive) = true];
+  repeated Enum name = 1 [(sensitive) = true];
+  repeated int32 not_redacted = 2;
 }
 
 message NotRedactedField {
