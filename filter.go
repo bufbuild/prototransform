@@ -72,7 +72,10 @@ func redactMessage(message protoreflect.Message, redaction func(protoreflect.Fie
 				redactMap(value, redaction)
 			case descriptor.IsList() && isMessage(descriptor):
 				redactList(value, redaction)
-			case isMessage(descriptor):
+			case !descriptor.IsMap() && isMessage(descriptor):
+				// isMessage by itself returns true for maps, since the type is
+				// a synthetic map entry message, so we also need !IsMap in
+				// this case's criteria.
 				redactMessage(value.Message(), redaction)
 			}
 			return true
