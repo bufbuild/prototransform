@@ -46,7 +46,7 @@ func NewDefaultFileDescriptorSetServiceClient(token string) reflectv1beta1connec
 		http.DefaultClient, "https://buf.build",
 		connect.WithInterceptors(NewAuthInterceptor(token)),
 		connect.WithHTTPGet(),
-		connect.WithHTTPGetMaxURLSize(4096, true),
+		connect.WithHTTPGetMaxURLSize(8192, true),
 	)
 }
 
