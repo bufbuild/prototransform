@@ -31,7 +31,11 @@ import (
 //
 // If you require a connection to a different BSR instance, create your own
 // [reflectv1beta1connect.FileDescriptorSetServiceClient]. You can use [NewAuthInterceptor]
-// to configure authentication credentials.
+// to configure authentication credentials. Also keep in mind that BSR instances support
+// conditional GET requests for the endpoint in question, so also use [connect.WithHTTPGet]
+// to enable that, which will typically eliminate unnecessary re-downloads of a schema.
+// (It may not eliminate them if you are filtering the schema by a large number of types
+// such that the entire request cannot fit in the URL of a GET request.)
 //
 // For help with authenticating with the Buf Schema Registry visit: https://docs.buf.build/bsr/authentication
 func NewDefaultFileDescriptorSetServiceClient(token string) reflectv1beta1connect.FileDescriptorSetServiceClient {
@@ -41,6 +45,8 @@ func NewDefaultFileDescriptorSetServiceClient(token string) reflectv1beta1connec
 	return reflectv1beta1connect.NewFileDescriptorSetServiceClient(
 		http.DefaultClient, "https://buf.build",
 		connect.WithInterceptors(NewAuthInterceptor(token)),
+		connect.WithHTTPGet(),
+		connect.WithHTTPGetMaxURLSize(8192, true),
 	)
 }
 

@@ -30,8 +30,7 @@ var inputData = []byte(`{"sentence": "I feel happy."}`)
 
 const (
 	messageName = "buf.connect.demo.eliza.v1.SayRequest"
-
-	moduleName = "buf.build/bufbuild/eliza"
+	moduleName  = "buf.build/bufbuild/eliza"
 )
 
 func Example() {
