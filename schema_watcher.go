@@ -492,6 +492,9 @@ func (s *SchemaWatcher) FindEnumByName(enum protoreflect.FullName) (protoreflect
 // ResolvedSchema returns the resolved schema in the form of a
 // FileDescriptorSet. Until AwaitReady returns a non-nil status, the return
 // value of this function can be nil.
+// The caller must not mutate the returned file descriptor set. Clone the
+// returned file descriptor set using proto.Clone before performing mutations
+// on it.
 func (s *SchemaWatcher) ResolvedSchema() *descriptorpb.FileDescriptorSet {
 	s.resolverMu.RLock()
 	schema := s.resolvedSchema
