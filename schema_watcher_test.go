@@ -24,7 +24,7 @@ import (
 	"time"
 
 	"buf.build/gen/go/bufbuild/reflect/bufbuild/connect-go/buf/reflect/v1beta1/reflectv1beta1connect"
-	"buf.build/gen/go/bufbuild/reflect/protocolbuffers/go/buf/reflect/v1beta1"
+	reflectv1beta1 "buf.build/gen/go/bufbuild/reflect/protocolbuffers/go/buf/reflect/v1beta1"
 	"github.com/bufbuild/connect-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -367,6 +367,7 @@ func TestSchemaWatcher_AwaitReady(t *testing.T) {
 		require.True(t, errors.Is(err, context.DeadlineExceeded))
 		ok, _ := watcher.LastResolved()
 		require.False(t, ok)
+		require.Nil(t, watcher.ResolvedSchema())
 
 		timestamp := time.Now()
 		close(latch)
@@ -377,6 +378,7 @@ func TestSchemaWatcher_AwaitReady(t *testing.T) {
 		ok, resolvedTime := watcher.LastResolved()
 		require.True(t, ok)
 		require.False(t, resolvedTime.Before(timestamp))
+		require.NotNil(t, watcher.ResolvedSchema())
 	})
 	t.Run("errors before becoming ready", func(t *testing.T) {
 		t.Parallel()
