@@ -56,7 +56,7 @@ type SchemaWatcherConfig struct {
 	// If Leaser is non-nil, it is used to decide whether the current process
 	// can poll for the schema. Cache must be non-nil. This is useful when the
 	// schema source is a remote process, and the current process is replicated
-	// (e.g. many instancesc running the same workload, for redundancy and/or
+	// (e.g. many instances running the same workload, for redundancy and/or
 	// capacity). This prevents all the replicas from polling. Instead, a single
 	// replica will "own" the lease and poll for the schema. It will then store
 	// the downloaded schema in the shared cache. A replica that does not have
