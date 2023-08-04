@@ -56,7 +56,7 @@ import (
 	// Supply auth credentials to the BSR
 	client := prototransform.NewDefaultFileDescriptorSetServiceClient("<bsr-token>")
 	// Configure the module for schema watcher
-	cfg := &prototransform.Config{
+	cfg := &prototransform.SchemaWatcherConfig{
 		SchemaPoller: prototransform.NewSchemaPoller(
 			client,
 			"buf.build/someuser/somerepo", // BSR module
