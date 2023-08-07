@@ -59,8 +59,8 @@ type SchemaWatcher struct {
 	cache   Cache
 
 	callbackMu  sync.Mutex
-	callback    func()
-	errCallback func(error)
+	callback    func(*SchemaWatcher)
+	errCallback func(*SchemaWatcher, error)
 
 	resolverMu      sync.RWMutex
 	resolver        *resolver
@@ -188,13 +188,13 @@ func (s *SchemaWatcher) updateResolver(ctx context.Context) (err error) {
 					// means callback does not need to be thread-safe.
 					s.callbackMu.Lock()
 					defer s.callbackMu.Unlock()
-					s.callback()
+					s.callback(s)
 				}()
 			} else if err != nil && !errors.Is(err, ErrSchemaNotModified) && s.errCallback != nil {
 				go func() {
 					s.callbackMu.Lock()
 					defer s.callbackMu.Unlock()
-					s.errCallback(err)
+					s.errCallback(s, err)
 				}()
 			}
 		}()

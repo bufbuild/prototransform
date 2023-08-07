@@ -74,11 +74,11 @@ type SchemaWatcherConfig struct {
 	// OnUpdate is an optional callback that will be invoked when a new schema
 	// is fetched. This can be used by an application to take action when a new
 	// schema becomes available.
-	OnUpdate func()
+	OnUpdate func(*SchemaWatcher)
 	// OnError is an optional callback that will be invoked when a schema cannot
 	// be fetched. This could be due to the SchemaPoller returning an error or
 	// failure to convert the fetched descriptors into a resolver.
-	OnError func(error)
+	OnError func(*SchemaWatcher, error)
 }
 
 func (c *SchemaWatcherConfig) validate() error {
