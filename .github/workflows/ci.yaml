@@ -7,7 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go-version: [1.19.x, 1.20.x]
+        go-version: [1.19.x, 1.20.x, 1.21.x]
     steps:
       - name: checkout
         uses: actions/checkout@v3
@@ -18,7 +18,7 @@ jobs:
         with:
           go-version: ${{ matrix.go-version }}
       - name: setup-buf
-        uses: bufbuild/buf-setup-action@v1.25.0
+        uses: bufbuild/buf-setup-action@v1
       - name: cache
         uses: actions/cache@v3
         with:
@@ -32,5 +32,5 @@ jobs:
           BUF_TOKEN: ${{ secrets.BUF_TOKEN }}
         run: make test
       - name: lint
-        if: matrix.go-version == '1.20.x'
+        if: matrix.go-version == '1.21.x'
         run: make lint
