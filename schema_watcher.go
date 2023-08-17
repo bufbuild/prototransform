@@ -568,11 +568,11 @@ func (s *SchemaWatcher) getFileDescriptorSet(ctx context.Context) (*descriptorpb
 		// try to fallback to cache
 		data, cacheErr := s.cache.Load(ctx, s.cacheKey)
 		if cacheErr != nil {
-			return nil, "", time.Time{}, fmt.Errorf("%w (failed to load from cache: %v)", err, cacheErr)
+			return nil, "", time.Time{}, fmt.Errorf("%w (failed to load from cache: %w)", err, cacheErr)
 		}
 		msg, cacheErr := decodeForCache(data)
 		if cacheErr != nil {
-			return nil, "", time.Time{}, fmt.Errorf("%w (failed to decode cached value: %v)", err, cacheErr)
+			return nil, "", time.Time{}, fmt.Errorf("%w (failed to decode cached value: %w)", err, cacheErr)
 		}
 		if !isCorrectCacheEntry(msg, s.schemaID, s.includeSymbols) {
 			// Cache key collision! Do not use this result!

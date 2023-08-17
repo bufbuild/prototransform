@@ -24,6 +24,7 @@ linters:
   disable:
     - cyclop            # covered by gocyclo
     - deadcode          # abandoned
+    - depguard          # requires custom config in newer versions to use non-stdlib deps
     - exhaustivestruct  # replaced by exhaustruct
     - exhaustruct       # super-spammy and doesn't like idiomatic Go (especially w/ protos)
     - funlen            # rely on code review to limit function length
