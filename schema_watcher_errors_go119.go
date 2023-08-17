@@ -20,5 +20,5 @@ import "fmt"
 
 // cacheMultiErr is a temporary workaround for Go 1.19 and earlier versions that don't support wrapping multiple errors.
 func cacheMultiErr(msg string, err error, cacheErr error) error {
-	return fmt.Errorf("%w (%s: %s)", err, msg, cacheErr) //nolint:errorlint
+	return fmt.Errorf("%w (%s: %v)", err, msg, cacheErr) //nolint:errorlint
 }
