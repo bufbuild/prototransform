@@ -21,8 +21,8 @@ import (
 	"os"
 	"strings"
 
-	"buf.build/gen/go/bufbuild/reflect/bufbuild/connect-go/buf/reflect/v1beta1/reflectv1beta1connect"
-	"github.com/bufbuild/connect-go"
+	"buf.build/gen/go/bufbuild/reflect/connectrpc/go/buf/reflect/v1beta1/reflectv1beta1connect"
+	"connectrpc.com/connect"
 )
 
 // NewDefaultFileDescriptorSetServiceClient will create an authenticated connection to the
