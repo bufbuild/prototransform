@@ -3,8 +3,8 @@ module github.com/bufbuild/prototransform
 go 1.19
 
 require (
-	buf.build/gen/go/bufbuild/reflect/connectrpc/go v1.11.0-20230627113514-3943db27b83c.1
-	buf.build/gen/go/bufbuild/reflect/protocolbuffers/go v1.31.0-20230627113514-3943db27b83c.1
+	buf.build/gen/go/bufbuild/reflect/connectrpc/go v1.11.1-20230822193137-310c9c4845dd.1
+	buf.build/gen/go/bufbuild/reflect/protocolbuffers/go v1.31.0-20230822193137-310c9c4845dd.1
 	connectrpc.com/connect v1.11.1
 	github.com/bradfitz/gomemcache v0.0.0-20230124162541-5f7a7d875746
 	github.com/gomodule/redigo v1.8.9
