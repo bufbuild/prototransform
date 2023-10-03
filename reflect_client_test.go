@@ -17,6 +17,7 @@ package prototransform
 import (
 	"context"
 	"testing"
+	"time"
 
 	"buf.build/gen/go/bufbuild/reflect/connectrpc/go/buf/reflect/v1beta1/reflectv1beta1connect"
 	reflectv1beta1 "buf.build/gen/go/bufbuild/reflect/protocolbuffers/go/buf/reflect/v1beta1"
@@ -68,15 +69,44 @@ func TestReflectClientLargeRequest(t *testing.T) {
 	req.Header().Set("If-None-Match", moduleVersion)
 	// The full types slice should be too large for a GET, which means we end up
 	// downloading the entire response.
-	resp, err := client.GetFileDescriptorSet(ctx, req)
+	resp, err := getFileDescriptorSet(ctx, client, req)
 	require.NoError(t, err)
 	require.GreaterOrEqual(t, len(resp.Msg.FileDescriptorSet.File), 42)
 
 	// If we ask for one fewer type, we should be below the limit and get back
 	// a "not modified" response code instead of a response body.
 	req.Msg.Symbols = types[:len(types)-1]
-	_, err = client.GetFileDescriptorSet(ctx, req)
+	_, err = getFileDescriptorSet(ctx, client, req)
 	require.True(t, connect.IsNotModifiedError(err))
+}
+
+func getFileDescriptorSet(
+	ctx context.Context,
+	client reflectv1beta1connect.FileDescriptorSetServiceClient,
+	req *connect.Request[reflectv1beta1.GetFileDescriptorSetRequest],
+) (*connect.Response[reflectv1beta1.GetFileDescriptorSetResponse], error) {
+	// We are hitting the real buf.build endpoint. To work-around spurious errors
+	// from a temporary network partition or encountering the endpoint rate limit,
+	// we will retry up to 3 times, with delay in between.
+	var lastErr error
+	for i := 0; i < 3; i++ {
+		if i > 0 {
+			// delay between attempts
+			time.Sleep(time.Second)
+		}
+		resp, err := client.GetFileDescriptorSet(ctx, req)
+		if err == nil {
+			return resp, nil
+		}
+		code := connect.CodeOf(err)
+		if code != connect.CodeUnavailable && code != connect.CodeResourceExhausted {
+			return nil, err
+		}
+		// On "unavailable" (could be transient network issue) or
+		// "resource exhausted" (rate limited), we loop and try again.
+		lastErr = err
+	}
+	return nil, lastErr
 }
 
 // Message types in buf.build/googleapis/googleapis. Generated via the following:
