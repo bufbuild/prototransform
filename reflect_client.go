@@ -44,7 +44,17 @@ func NewDefaultFileDescriptorSetServiceClient(token string) reflectv1beta1connec
 	}
 	return reflectv1beta1connect.NewFileDescriptorSetServiceClient(
 		http.DefaultClient, "https://buf.build",
-		connect.WithInterceptors(NewAuthInterceptor(token)),
+		connect.WithInterceptors(
+			NewAuthInterceptor(token),
+			connect.UnaryInterceptorFunc(func(call connect.UnaryFunc) connect.UnaryFunc {
+				return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
+					// decorate user-agent with the name of the package
+					userAgent := fmt.Sprintf("prototransform-go %s", req.Header().Get("User-Agent"))
+					req.Header().Set("User-Agent", userAgent)
+					return call(ctx, req)
+				}
+			}),
+		),
 		connect.WithHTTPGet(),
 		connect.WithHTTPGetMaxURLSize(8192, true),
 	)
