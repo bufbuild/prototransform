@@ -8,7 +8,7 @@ require (
 	connectrpc.com/connect v1.11.1
 	github.com/bradfitz/gomemcache v0.0.0-20230124162541-5f7a7d875746
 	github.com/gomodule/redigo v1.8.9
-	github.com/google/go-cmp v0.5.9
+	github.com/google/go-cmp v0.6.0
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.8.4
 	google.golang.org/protobuf v1.31.0
