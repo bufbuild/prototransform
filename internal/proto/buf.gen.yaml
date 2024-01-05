@@ -4,6 +4,6 @@ managed:
   go_package_prefix:
     default: github.com/bufbuild/prototransform/internal/proto/gen
 plugins:
-  - plugin: buf.build/protocolbuffers/go:v1.30.0
+  - plugin: buf.build/protocolbuffers/go:v1.32.0
     out: gen
     opt: paths=source_relative
