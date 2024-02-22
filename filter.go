@@ -1,4 +1,4 @@
-// Copyright 2023 Buf Technologies, Inc.
+// Copyright 2023-2024 Buf Technologies, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -90,7 +90,7 @@ func redactList(value protoreflect.Value, redaction func(protoreflect.FieldDescr
 }
 
 func redactMap(value protoreflect.Value, redaction func(protoreflect.FieldDescriptor) bool) {
-	value.Map().Range(func(mapKey protoreflect.MapKey, mapValue protoreflect.Value) bool {
+	value.Map().Range(func(_ protoreflect.MapKey, mapValue protoreflect.Value) bool {
 		redactMessage(mapValue.Message(), redaction)
 		return true
 	})

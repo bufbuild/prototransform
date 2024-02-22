@@ -1,4 +1,4 @@
-// Copyright 2023 Buf Technologies, Inc.
+// Copyright 2023-2024 Buf Technologies, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -33,7 +33,7 @@ import (
 func TestSchemaService_ConvertMessage(t *testing.T) {
 	t.Parallel()
 	// create schema for message to convert
-	sourceFile := fakeFileDescriptorSet().File[0]
+	sourceFile := fakeFileDescriptorSet().GetFile()[0]
 
 	// create test message
 	fileDescriptor, err := protodesc.NewFile(sourceFile, nil)

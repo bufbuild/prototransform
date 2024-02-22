@@ -1,4 +1,4 @@
-// Copyright 2023 Buf Technologies, Inc.
+// Copyright 2023-2024 Buf Technologies, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@ package prototransform
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -49,7 +50,7 @@ func NewDefaultFileDescriptorSetServiceClient(token string) reflectv1beta1connec
 			connect.UnaryInterceptorFunc(func(call connect.UnaryFunc) connect.UnaryFunc {
 				return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
 					// decorate user-agent with the name of the package
-					userAgent := fmt.Sprintf("%s prototransform-go", req.Header().Get("User-Agent"))
+					userAgent := req.Header().Get("User-Agent") + " prototransform-go"
 					req.Header().Set("User-Agent", userAgent)
 					return call(ctx, req)
 				}
@@ -68,7 +69,7 @@ func NewDefaultFileDescriptorSetServiceClient(token string) reflectv1beta1connec
 //
 // To get a token from the environment (e.g. BUF_TOKEN env var), see BufTokenFromEnvironment.
 func NewAuthInterceptor(token string) connect.Interceptor {
-	bearerAuthValue := fmt.Sprintf("Bearer %s", token)
+	bearerAuthValue := "Bearer " + token
 	return connect.UnaryInterceptorFunc(func(next connect.UnaryFunc) connect.UnaryFunc {
 		return func(ctx context.Context, request connect.AnyRequest) (connect.AnyResponse, error) {
 			request.Header().Set("Authorization", bearerAuthValue)
@@ -84,7 +85,7 @@ func BufTokenFromEnvironment(moduleRef string) (string, error) {
 	parts := strings.SplitN(moduleRef, "/", 2)
 	envBufToken := os.Getenv("BUF_TOKEN")
 	if envBufToken == "" {
-		return "", fmt.Errorf("no BUF_TOKEN environment variable set")
+		return "", errors.New("no BUF_TOKEN environment variable set")
 	}
 	tok := parseBufToken(envBufToken, parts[0])
 	if tok == "" {

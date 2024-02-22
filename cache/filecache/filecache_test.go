@@ -1,4 +1,4 @@
-// Copyright 2023 Buf Technologies, Inc.
+// Copyright 2023-2024 Buf Technologies, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -174,7 +174,7 @@ func TestSanitize(t *testing.T) {
 func checkFiles(t *testing.T, dir string, mode fs.FileMode, names map[string]struct{}) {
 	t.Helper()
 	err := fs.WalkDir(os.DirFS(dir), ".", func(path string, dirEntry fs.DirEntry, err error) error {
-		if !assert.NoError(t, err) {
+		if !assert.NoError(t, err) { //nolint:testifylint
 			return nil
 		}
 		if dirEntry.IsDir() {
@@ -190,7 +190,7 @@ func checkFiles(t *testing.T, dir string, mode fs.FileMode, names map[string]str
 		}
 		delete(names, path)
 		info, err := dirEntry.Info()
-		if !assert.NoErrorf(t, err, "failed to get file info for %s", path) {
+		if !assert.NoErrorf(t, err, "failed to get file info for %s", path) { //nolint:testifylint
 			return nil
 		}
 		assert.Equal(t, mode, info.Mode())

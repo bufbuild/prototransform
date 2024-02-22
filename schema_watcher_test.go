@@ -1,4 +1,4 @@
-// Copyright 2023 Buf Technologies, Inc.
+// Copyright 2023-2024 Buf Technologies, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -44,7 +44,7 @@ func TestNewSchemaWatcher(t *testing.T) {
 		config := &SchemaWatcherConfig{}
 		got, err := NewSchemaWatcher(ctx, config)
 		require.Error(t, err)
-		assert.EqualError(t, err, "schema poller not provided")
+		require.EqualError(t, err, "schema poller not provided")
 		assert.Nil(t, got)
 	})
 	t.Run("polling period negative", func(t *testing.T) {
@@ -55,7 +55,7 @@ func TestNewSchemaWatcher(t *testing.T) {
 		}
 		got, err := NewSchemaWatcher(ctx, config)
 		require.Error(t, err)
-		assert.EqualError(t, err, "polling period duration cannot be negative")
+		require.EqualError(t, err, "polling period duration cannot be negative")
 		assert.Nil(t, got)
 	})
 	t.Run("jitter negative", func(t *testing.T) {
@@ -66,7 +66,7 @@ func TestNewSchemaWatcher(t *testing.T) {
 		}
 		got, err := NewSchemaWatcher(ctx, config)
 		require.Error(t, err)
-		assert.EqualError(t, err, "jitter cannot be negative")
+		require.EqualError(t, err, "jitter cannot be negative")
 		assert.Nil(t, got)
 	})
 	t.Run("jitter > 1", func(t *testing.T) {
@@ -77,7 +77,7 @@ func TestNewSchemaWatcher(t *testing.T) {
 		}
 		got, err := NewSchemaWatcher(ctx, config)
 		require.Error(t, err)
-		assert.EqualError(t, err, "jitter cannot be greater than 1.0 (100%)")
+		require.EqualError(t, err, "jitter cannot be greater than 1.0 (100%)")
 		assert.Nil(t, got)
 	})
 	t.Run("invalid symbol name", func(t *testing.T) {
@@ -88,7 +88,7 @@ func TestNewSchemaWatcher(t *testing.T) {
 		}
 		got, err := NewSchemaWatcher(ctx, config)
 		require.Error(t, err)
-		assert.EqualError(t, err, `"$poop" is not a valid symbol name`)
+		require.EqualError(t, err, `"$poop" is not a valid symbol name`)
 		assert.Nil(t, got)
 	})
 	t.Run("leaser without cache", func(t *testing.T) {
@@ -102,7 +102,7 @@ func TestNewSchemaWatcher(t *testing.T) {
 		}
 		got, err := NewSchemaWatcher(ctx, config)
 		require.Error(t, err)
-		assert.EqualError(t, err, "leaser config should only be present when cache config also present")
+		require.EqualError(t, err, "leaser config should only be present when cache config also present")
 		assert.Nil(t, got)
 	})
 	t.Run("successfully create schema watcher with default polling period", func(t *testing.T) {
@@ -208,7 +208,7 @@ func TestSchemaWatcher_FindExtensionByName(t *testing.T) {
 	}
 	got, err := schemaWatcher.FindExtensionByName("foo.bar.xt")
 	require.NoError(t, err)
-	assert.Equal(t, "foo.bar.xt", string(got.TypeDescriptor().FullName()))
+	require.Equal(t, "foo.bar.xt", string(got.TypeDescriptor().FullName()))
 }
 
 func TestSchemaWatcher_FindExtensionByNumber(t *testing.T) {
@@ -220,7 +220,7 @@ func TestSchemaWatcher_FindExtensionByNumber(t *testing.T) {
 	}
 	got, err := schemaWatcher.FindExtensionByNumber("foo.bar.Message", protowire.Number(123))
 	require.NoError(t, err)
-	assert.Equal(t, "foo.bar.xt", string(got.TypeDescriptor().FullName()))
+	require.Equal(t, "foo.bar.xt", string(got.TypeDescriptor().FullName()))
 }
 
 func TestSchemaWatcher_FindMessageByName(t *testing.T) {
@@ -232,7 +232,7 @@ func TestSchemaWatcher_FindMessageByName(t *testing.T) {
 	}
 	got, err := schemaWatcher.FindMessageByName("foo.bar.Message")
 	require.NoError(t, err)
-	assert.Equal(t, "foo.bar.Message", string(got.Descriptor().FullName()))
+	require.Equal(t, "foo.bar.Message", string(got.Descriptor().FullName()))
 }
 
 func TestSchemaWatcher_FindMessageByURL(t *testing.T) {
@@ -244,7 +244,7 @@ func TestSchemaWatcher_FindMessageByURL(t *testing.T) {
 	}
 	got, err := schemaWatcher.FindMessageByURL("foo.bar.Message")
 	require.NoError(t, err)
-	assert.Equal(t, "foo.bar.Message", string(got.Descriptor().FullName()))
+	require.Equal(t, "foo.bar.Message", string(got.Descriptor().FullName()))
 }
 
 func TestSchemaWatcher_getResolver(t *testing.T) {
@@ -252,7 +252,7 @@ func TestSchemaWatcher_getResolver(t *testing.T) {
 	want := &resolver{}
 	schemaWatcher := &SchemaWatcher{resolver: want}
 	assert.True(t, schemaWatcher.resolverMu.TryRLock())
-	assert.Equal(t, want, schemaWatcher.getResolver())
+	require.Equal(t, want, schemaWatcher.getResolver())
 	assert.True(t, schemaWatcher.resolverMu.TryRLock())
 }
 
@@ -281,20 +281,20 @@ func TestSchemaWatcher_updateResolver(t *testing.T) {
 		require.NoError(t, schemaWatcher.updateResolver(context.Background()))
 		got, err := schemaWatcher.resolver.FindMessageByName("foo.bar.Message")
 		require.NoError(t, err)
-		assert.Equal(t, "foo.bar.Message", string(got.Descriptor().FullName()))
+		require.Equal(t, "foo.bar.Message", string(got.Descriptor().FullName()))
 	})
 	t.Run("updateResolver fails", func(t *testing.T) {
 		t.Parallel()
 		schemaWatcher := &SchemaWatcher{
 			poller: NewSchemaPoller(&fakeFileDescriptorSetService{
 				getFileDescriptorSetFunc: func(context.Context, *connect.Request[reflectv1beta1.GetFileDescriptorSetRequest]) (*connect.Response[reflectv1beta1.GetFileDescriptorSetResponse], error) {
-					return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("foo"))
+					return nil, connect.NewError(connect.CodeInternal, errors.New("foo"))
 				},
 			}, "", ""),
 		}
 		err := schemaWatcher.updateResolver(context.Background())
 		require.Error(t, err)
-		assert.EqualError(t, err, "failed to fetch schema: internal: foo")
+		require.EqualError(t, err, "failed to fetch schema: internal: foo")
 	})
 	t.Run("updateResolver fails", func(t *testing.T) {
 		t.Parallel()
@@ -364,7 +364,7 @@ func TestSchemaWatcher_AwaitReady(t *testing.T) {
 		defer cancel()
 		err = watcher.AwaitReady(timeoutCtx)
 		require.Error(t, err)
-		require.True(t, errors.Is(err, context.DeadlineExceeded))
+		require.ErrorIs(t, err, context.DeadlineExceeded)
 		ok, _ := watcher.LastResolved()
 		require.False(t, ok)
 		require.Nil(t, watcher.ResolvedSchema())
@@ -405,7 +405,7 @@ func TestSchemaWatcher_AwaitReady(t *testing.T) {
 		// download should have failed at least once so this should be the RPC error
 		require.Error(t, err)
 		var connErr *connect.Error
-		require.True(t, errors.As(err, &connErr))
+		require.ErrorAs(t, err, &connErr)
 		require.Equal(t, connect.CodeUnavailable, connErr.Code())
 		ok, _ := watcher.LastResolved()
 		require.False(t, ok)
@@ -436,7 +436,7 @@ func TestSchemaWatcher_AwaitReady(t *testing.T) {
 		watcher.Stop()
 		err = watcher.AwaitReady(ctx)
 		require.Error(t, err)
-		require.True(t, errors.Is(err, ErrSchemaWatcherStopped))
+		require.ErrorIs(t, err, ErrSchemaWatcherStopped)
 	})
 }
 
@@ -476,12 +476,12 @@ func TestSchemaWatcher_UsingCache(t *testing.T) {
 		require.GreaterOrEqual(t, len(loads), 1) // racing w/ retry so could be >1
 		require.Equal(t, "foo/bar:main", loads[0].key)
 		saves := cache.getSaveCalls()
-		require.Equal(t, 0, len(saves))
+		require.Empty(t, saves)
 
 		// schema watcher cannot become ready if service unavailable and cache has no entry
 		_, err = watcher.FindMessageByName("foo.bar.Message")
 		require.Error(t, err)
-		require.True(t, errors.Is(err, ErrSchemaWatcherNotReady))
+		require.ErrorIs(t, err, ErrSchemaWatcherNotReady)
 		ok, _ := watcher.LastResolved()
 		require.False(t, ok)
 	})
@@ -509,10 +509,10 @@ func TestSchemaWatcher_UsingCache(t *testing.T) {
 		err = watcher.AwaitReady(readyCtx)
 		require.NoError(t, err)
 		loads := cache.getLoadCalls()
-		require.Equal(t, 1, len(loads))
+		require.Len(t, loads, 1)
 		require.Equal(t, "foo/bar:main", loads[0].key)
 		saves := cache.getSaveCalls()
-		require.Equal(t, 1, len(saves)) // just one call to seed cache above
+		require.Len(t, saves, 1) // just one call to seed cache above
 
 		_, err = watcher.FindMessageByName("foo.bar.Message")
 		require.NoError(t, err)
@@ -547,7 +547,7 @@ func TestSchemaWatcher_UsingCache(t *testing.T) {
 		case <-saveHookChan:
 		}
 		saves := cache.getSaveCalls()
-		require.Equal(t, 1, len(saves))
+		require.Len(t, saves, 1)
 
 		readyCtx, cancel := context.WithTimeout(ctx, time.Second)
 		defer cancel()
@@ -626,7 +626,7 @@ func TestSchemaWatcher_UsingLeaser(t *testing.T) {
 
 	// One cache load for each follower
 	loads := cache.getLoadCalls()
-	require.Equal(t, 3, len(loads))
+	require.Len(t, loads, 3)
 }
 
 func TestSchemaWatcher_callbacks(t *testing.T) {

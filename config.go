@@ -1,4 +1,4 @@
-// Copyright 2023 Buf Technologies, Inc.
+// Copyright 2023-2024 Buf Technologies, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
 package prototransform
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -83,22 +84,22 @@ type SchemaWatcherConfig struct {
 
 func (c *SchemaWatcherConfig) validate() error {
 	if c.SchemaPoller == nil {
-		return fmt.Errorf("schema poller not provided")
+		return errors.New("schema poller not provided")
 	}
 	if c.PollingPeriod < 0 {
-		return fmt.Errorf("polling period duration cannot be negative")
+		return errors.New("polling period duration cannot be negative")
 	}
 	if c.Jitter < 0 {
-		return fmt.Errorf("jitter cannot be negative")
+		return errors.New("jitter cannot be negative")
 	}
 	if c.Jitter > 1.0 {
-		return fmt.Errorf("jitter cannot be greater than 1.0 (100%%)")
+		return errors.New("jitter cannot be greater than 1.0 (100%)")
 	}
 	if c.Leaser != nil && c.Cache == nil {
-		return fmt.Errorf("leaser config should only be present when cache config also present")
+		return errors.New("leaser config should only be present when cache config also present")
 	}
 	if c.Leaser != nil && c.CurrentProcess != nil && len(c.CurrentProcess) == 0 {
-		return fmt.Errorf("current process is empty but not nil; leave nil or set to non-empty value")
+		return errors.New("current process is empty but not nil; leave nil or set to non-empty value")
 	}
 	for _, sym := range c.IncludeSymbols {
 		if sym == "" {

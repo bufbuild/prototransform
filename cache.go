@@ -1,4 +1,4 @@
-// Copyright 2023 Buf Technologies, Inc.
+// Copyright 2023-2024 Buf Technologies, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -63,7 +63,7 @@ func decodeForCache(data []byte) (*prototransformv1alpha1.CacheEntry, error) {
 }
 
 func isCorrectCacheEntry(entry *prototransformv1alpha1.CacheEntry, schemaID string, syms []string) bool {
-	return entry.Id == schemaID && isSuperSet(entry.IncludedSymbols, syms)
+	return entry.GetId() == schemaID && isSuperSet(entry.GetIncludedSymbols(), syms)
 }
 
 func isSuperSet(have, want []string) bool {
