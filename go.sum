@@ -1,9 +1,9 @@
-buf.build/gen/go/bufbuild/reflect/connectrpc/go v1.14.0-20240117202343-bf8f65e8876c.1 h1:Mr3s8YTatpI1GOPYGF5bIl37LC/Wh/Z6T8yg4GYbfoA=
-buf.build/gen/go/bufbuild/reflect/connectrpc/go v1.14.0-20240117202343-bf8f65e8876c.1/go.mod h1:YGDdVV93izFoiItOggmcrlSe8X0hEpDFFW526j9QHW0=
+buf.build/gen/go/bufbuild/reflect/connectrpc/go v1.15.0-20240117202343-bf8f65e8876c.1 h1:NkpXpVRdzDwBHxE0WT99bSIV0NKCLiRFQavzYJnmesc=
+buf.build/gen/go/bufbuild/reflect/connectrpc/go v1.15.0-20240117202343-bf8f65e8876c.1/go.mod h1:GcYl/jRwkMAIhgUmRPI8fAkmY4ZgS6sVNE+TFWAPp4w=
 buf.build/gen/go/bufbuild/reflect/protocolbuffers/go v1.32.0-20240117202343-bf8f65e8876c.1 h1:0fFmBFylQXRrfDMNrwDY5qciXRZC1XhVmt/iL9dIMRQ=
 buf.build/gen/go/bufbuild/reflect/protocolbuffers/go v1.32.0-20240117202343-bf8f65e8876c.1/go.mod h1:PHbSLC9xALJETGVAw8ct7v3f9t4TuR5Mcr/oXXFqVXE=
-connectrpc.com/connect v1.14.0 h1:PDS+J7uoz5Oui2VEOMcfz6Qft7opQM9hPiKvtGC01pA=
-connectrpc.com/connect v1.14.0/go.mod h1:uoAq5bmhhn43TwhaKdGKN/bZcGtzPW1v+ngDTn5u+8s=
+connectrpc.com/connect v1.15.0 h1:lFdeCbZrVVDydAqwr4xGV2y+ULn+0Z73s5JBj2LikWo=
+connectrpc.com/connect v1.15.0/go.mod h1:bQmjpDY8xItMnttnurVgOkHUBMRT9cpsNi2O4AjKhmA=
 github.com/bradfitz/gomemcache v0.0.0-20230124162541-5f7a7d875746 h1:wAIE/kN63Oig1DdOzN7O+k4AbFh2cCJoKMFXrwRJtzk=
 github.com/bradfitz/gomemcache v0.0.0-20230124162541-5f7a7d875746/go.mod h1:H0wQNHz2YrLsuXOZozoeDmnHXkNCRmMW0gwFWDfEZDA=
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
@@ -34,8 +34,8 @@ github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+
 github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
 github.com/stretchr/testify v1.8.4 h1:CcVxjf3Q8PM0mHUKJCdn+eZZtm5yQwehR5yeSVQQcUk=
 github.com/stretchr/testify v1.8.4/go.mod h1:sz/lmYIOXD/1dqDmKjjqLyZ2RngseejIcXlSw2iwfAo=
-golang.org/x/net v0.17.0 h1:pVaXccu2ozPjCXewfr1S7xza/zcXTity9cCdXQYSjIM=
-golang.org/x/text v0.13.0 h1:ablQoSUd0tRdKxZewP80B+BaqeKJuVhuRxj/dkrun3k=
+golang.org/x/net v0.21.0 h1:AQyQV4dYCvJ7vGmJyKki9+PBdyvhkSd8EIx/qb0AYv4=
+golang.org/x/text v0.14.0 h1:ScX5w1eTa3QqT8oi6+ziP7dTV1S2+ALU0bI+0zXKWiQ=
 golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
 google.golang.org/protobuf v1.26.0-rc.1/go.mod h1:jlhhOSvTdKEhbULTjvd4ARK9grFBp09yW+WbY/TyQbw=
 google.golang.org/protobuf v1.32.0 h1:pPC6BG5ex8PDFnkbrGU3EixyhKcQ2aDuBS36lqK/C7I=
