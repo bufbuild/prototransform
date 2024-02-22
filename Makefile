@@ -7,12 +7,12 @@ MAKEFLAGS += --warn-undefined-variables
 MAKEFLAGS += --no-builtin-rules
 MAKEFLAGS += --no-print-directory
 BIN := .tmp/bin
-COPYRIGHT_YEARS := 2023
+COPYRIGHT_YEARS := 2023-$(shell date +%Y)
 LICENSE_IGNORE := -e internal/testdata/
 # Set to use a different compiler. For example, `GO=go1.18rc1 make test`.
 GO ?= go
-BUF_VERSION ?= v1.26.1
-GOLANGCI_LINT_VERSION ?= v1.54.1
+BUF_VERSION ?= v1.29.0
+GOLANGCI_LINT_VERSION ?= v1.56.2
 
 .PHONY: help
 help: ## Describe useful make targets
