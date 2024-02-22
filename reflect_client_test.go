@@ -71,7 +71,7 @@ func TestReflectClientLargeRequest(t *testing.T) {
 	// downloading the entire response.
 	resp, err := getFileDescriptorSet(ctx, client, req)
 	require.NoError(t, err)
-	require.GreaterOrEqual(t, len(resp.Msg.FileDescriptorSet.File), 42)
+	require.GreaterOrEqual(t, len(resp.Msg.GetFileDescriptorSet().GetFile()), 42)
 
 	// If we ask for one fewer type, we should be below the limit and get back
 	// a "not modified" response code instead of a response body.

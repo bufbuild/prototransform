@@ -47,7 +47,7 @@ type resolver struct {
 func newResolver(fileDescriptors *descriptorpb.FileDescriptorSet) (*resolver, error) {
 	var result resolver
 	// TODO(TCN-925): maybe should reparse unrecognized fields in fileDescriptors after creating resolver?
-	if len(fileDescriptors.File) == 0 {
+	if len(fileDescriptors.GetFile()) == 0 {
 		return &result, nil
 	}
 	files, err := protodesc.FileOptions{AllowUnresolvable: true}.NewFiles(fileDescriptors)

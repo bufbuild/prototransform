@@ -89,7 +89,7 @@ func (b *bufReflectPoller) GetSchema(ctx context.Context, symbols []string, curr
 		}
 		return nil, "", err
 	}
-	return resp.Msg.FileDescriptorSet, resp.Msg.Version, err
+	return resp.Msg.GetFileDescriptorSet(), resp.Msg.GetVersion(), err
 }
 
 func (b *bufReflectPoller) GetSchemaID() string {

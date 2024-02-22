@@ -63,7 +63,7 @@ func decodeForCache(data []byte) (*prototransformv1alpha1.CacheEntry, error) {
 }
 
 func isCorrectCacheEntry(entry *prototransformv1alpha1.CacheEntry, schemaID string, syms []string) bool {
-	return entry.Id == schemaID && isSuperSet(entry.IncludedSymbols, syms)
+	return entry.GetId() == schemaID && isSuperSet(entry.GetIncludedSymbols(), syms)
 }
 
 func isSuperSet(have, want []string) bool {

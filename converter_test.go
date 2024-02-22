@@ -33,7 +33,7 @@ import (
 func TestSchemaService_ConvertMessage(t *testing.T) {
 	t.Parallel()
 	// create schema for message to convert
-	sourceFile := fakeFileDescriptorSet().File[0]
+	sourceFile := fakeFileDescriptorSet().GetFile()[0]
 
 	// create test message
 	fileDescriptor, err := protodesc.NewFile(sourceFile, nil)

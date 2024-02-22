@@ -90,7 +90,7 @@ func redactList(value protoreflect.Value, redaction func(protoreflect.FieldDescr
 }
 
 func redactMap(value protoreflect.Value, redaction func(protoreflect.FieldDescriptor) bool) {
-	value.Map().Range(func(mapKey protoreflect.MapKey, mapValue protoreflect.Value) bool {
+	value.Map().Range(func(_ protoreflect.MapKey, mapValue protoreflect.Value) bool {
 		redactMessage(mapValue.Message(), redaction)
 		return true
 	})
