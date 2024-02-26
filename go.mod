@@ -7,7 +7,7 @@ require (
 	buf.build/gen/go/bufbuild/reflect/protocolbuffers/go v1.32.0-20240117202343-bf8f65e8876c.1
 	connectrpc.com/connect v1.15.0
 	github.com/bradfitz/gomemcache v0.0.0-20230124162541-5f7a7d875746
-	github.com/gomodule/redigo v1.8.9
+	github.com/gomodule/redigo v1.9.2
 	github.com/google/go-cmp v0.6.0
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.8.4
