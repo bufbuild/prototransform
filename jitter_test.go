@@ -55,16 +55,16 @@ func TestAddJitter(t *testing.T) {
 		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
-			var min, max time.Duration
+			var minPeriod, maxPeriod time.Duration
 			for i := 0; i < 10_000; i++ {
 				period := addJitter(testCase.pollingPeriod, testCase.jitter)
 				require.GreaterOrEqual(t, period, testCase.min)
 				require.LessOrEqual(t, period, testCase.max)
-				if i == 0 || period < min {
-					min = period
+				if i == 0 || period < minPeriod {
+					minPeriod = period
 				}
-				if i == 0 || period > max {
-					max = period
+				if i == 0 || period > maxPeriod {
+					maxPeriod = period
 				}
 			}
 			// After 10k iterations, with uniform distribution RNG, we could
@@ -72,7 +72,7 @@ func TestAddJitter(t *testing.T) {
 			// to make sure we don't see flaky failures in CI. We want to observe
 			// at least 90% of the effective jitter range.
 			minVariation := time.Duration(0.9 * float64(testCase.max-testCase.min))
-			require.GreaterOrEqual(t, max-min, minVariation)
+			require.GreaterOrEqual(t, maxPeriod-minPeriod, minVariation)
 		})
 	}
 }
