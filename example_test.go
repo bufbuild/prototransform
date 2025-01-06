@@ -56,7 +56,12 @@ func Example() {
 		log.Fatalf("failed to create schema watcher: %v", err)
 		return
 	}
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	// The BSR imposes a rate limit, so that multiple concurrent CI jobs can tickle it
+	// and then cause this next call to fail because all calls get rejected with a
+	// "resource exhausted" error. So that's why we have a large timeout of a whole
+	// minute: eventually, it will succeed, even if we get rate-limited due to other
+	// concurrent CI jobs hitting the same API with the same token.
+	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
 	if err := schemaWatcher.AwaitReady(ctx); err != nil {
 		log.Fatalf("schema watcher never became ready: %v", err)
