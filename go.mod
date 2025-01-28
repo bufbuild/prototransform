@@ -4,7 +4,7 @@ go 1.21
 
 require (
 	buf.build/gen/go/bufbuild/reflect/connectrpc/go v1.18.1-20240117202343-bf8f65e8876c.1
-	buf.build/gen/go/bufbuild/reflect/protocolbuffers/go v1.36.2-20240117202343-bf8f65e8876c.1
+	buf.build/gen/go/bufbuild/reflect/protocolbuffers/go v1.36.4-20240117202343-bf8f65e8876c.1
 	connectrpc.com/connect v1.18.1
 	github.com/bradfitz/gomemcache v0.0.0-20230905024940-24af94b03874
 	github.com/gomodule/redigo v1.9.2
