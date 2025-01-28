@@ -87,12 +87,18 @@ func getFileDescriptorSet(
 ) (*connect.Response[reflectv1beta1.GetFileDescriptorSetResponse], error) {
 	// We are hitting the real buf.build endpoint. To work-around spurious errors
 	// from a temporary network partition or encountering the endpoint rate limit,
-	// we will retry up to 3 times, with delay in between.
+	// we will retry for up to a minute. (The long retry window is to allow
+	// exponential back-off delays between attempts and to be resilient to cases
+	// in CI where multiple concurrent jobs are hitting the endpoint and exceeding
+	// the rate limit.)
 	var lastErr error
-	for i := 0; i < 3; i++ {
-		if i > 0 {
+	delay := 250 * time.Millisecond
+	start := time.Now()
+	for {
+		if lastErr != nil {
 			// delay between attempts
-			time.Sleep(time.Second)
+			time.Sleep(delay)
+			delay *= 2
 		}
 		resp, err := client.GetFileDescriptorSet(ctx, req)
 		if err == nil {
@@ -102,11 +108,14 @@ func getFileDescriptorSet(
 		if code != connect.CodeUnavailable && code != connect.CodeResourceExhausted {
 			return nil, err
 		}
+		if time.Since(start) > time.Minute {
+			// Took too long. Fail.
+			return nil, err
+		}
 		// On "unavailable" (could be transient network issue) or
 		// "resource exhausted" (rate limited), we loop and try again.
 		lastErr = err
 	}
-	return nil, lastErr
 }
 
 // Message types in buf.build/googleapis/googleapis. Generated via the following:
