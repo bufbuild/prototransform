@@ -1,4 +1,4 @@
-// Copyright 2023-2024 Buf Technologies, Inc.
+// Copyright 2023-2025 Buf Technologies, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -650,4 +650,9 @@ func (e leaseHolderUnknownError) Error() string {
 
 func (e leaseHolderUnknownError) Unwrap() error {
 	return e.err
+}
+
+// cacheMultiErr wraps multiple errors with fmt.Errorf.
+func cacheMultiErr(msg string, err error, cacheErr error) error {
+	return fmt.Errorf("%w (%s: %w)", err, msg, cacheErr)
 }

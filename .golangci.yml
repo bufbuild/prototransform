@@ -23,13 +23,11 @@ linters:
   disable:
     - cyclop            # covered by gocyclo
     - depguard          # requires custom config in newer versions to use non-stdlib deps
-    - execinquery       # deprecated in golangci v1.58.0
     - exhaustruct       # super-spammy and doesn't like idiomatic Go (especially w/ protos)
     - funlen            # rely on code review to limit function length
     - gocognit          # dubious "cognitive overhead" quantification
     - gofumpt           # prefer standard gofmt
     - goimports         # rely on gci instead
-    - gomnd             # some unnamed constants are okay
     - inamedparam       # convention is not followed
     - ireturn           # "accept interfaces, return structs" isn't ironclad
     - lll               # don't want hard limits for line length
@@ -37,6 +35,7 @@ linters:
     - mnd               # some unnamed constants are okay
     - nlreturn          # generous whitespace violates house style
     - nonamedreturns    # no bare returns is really what we care about
+    - tenv              # replaced by usetesting
     - testpackage       # internal tests are fine
     - wrapcheck         # don't _always_ need to wrap errors
     - wsl               # generous whitespace violates house style

@@ -1,4 +1,4 @@
-// Copyright 2023-2024 Buf Technologies, Inc.
+// Copyright 2023-2025 Buf Technologies, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -74,13 +74,7 @@ func TestFileCache(t *testing.T) {
 		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
-			tmpDir, err := os.MkdirTemp("", "filecachetest")
-			require.NoError(t, err)
-			t.Cleanup(func() {
-				err := os.RemoveAll(tmpDir)
-				assert.NoError(t, err)
-			})
-
+			tmpDir := t.TempDir()
 			testCase.config.Path = tmpDir
 			cache, err := New(testCase.config)
 			require.NoError(t, err)
