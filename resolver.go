@@ -77,12 +77,12 @@ type typeContainer interface {
 }
 
 func registerTypes(types *protoregistry.Types, container typeContainer) error {
-	for i := 0; i < container.Enums().Len(); i++ {
+	for i := range container.Enums().Len() {
 		if err := types.RegisterEnum(dynamicpb.NewEnumType(container.Enums().Get(i))); err != nil {
 			return err
 		}
 	}
-	for i := 0; i < container.Messages().Len(); i++ {
+	for i := range container.Messages().Len() {
 		msg := container.Messages().Get(i)
 		if err := types.RegisterMessage(dynamicpb.NewMessageType(msg)); err != nil {
 			return err
@@ -91,7 +91,7 @@ func registerTypes(types *protoregistry.Types, container typeContainer) error {
 			return err
 		}
 	}
-	for i := 0; i < container.Extensions().Len(); i++ {
+	for i := range container.Extensions().Len() {
 		if err := types.RegisterExtension(dynamicpb.NewExtensionType(container.Extensions().Get(i))); err != nil {
 			return err
 		}
