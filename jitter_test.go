@@ -52,11 +52,10 @@ func TestAddJitter(t *testing.T) {
 		},
 	}
 	for _, testCase := range testCases {
-		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 			var minPeriod, maxPeriod time.Duration
-			for i := 0; i < 10_000; i++ {
+			for i := range 10_000 {
 				period := addJitter(testCase.pollingPeriod, testCase.jitter)
 				require.GreaterOrEqual(t, period, testCase.min)
 				require.LessOrEqual(t, period, testCase.max)

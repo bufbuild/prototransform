@@ -84,7 +84,7 @@ func redactMessage(message protoreflect.Message, redaction func(protoreflect.Fie
 }
 
 func redactList(value protoreflect.Value, redaction func(protoreflect.FieldDescriptor) bool) {
-	for i := 0; i < value.List().Len(); i++ {
+	for i := range value.List().Len() {
 		redactMessage(value.List().Get(i).Message(), redaction)
 	}
 }

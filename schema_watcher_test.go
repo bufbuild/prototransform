@@ -178,7 +178,6 @@ func TestNewSchemaWatcher_cacheKey(t *testing.T) {
 		},
 	}
 	for _, testCase := range testCases {
-		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 			watcher, err := NewSchemaWatcher(ctx, &testCase.config)
@@ -606,7 +605,7 @@ func TestSchemaWatcher_UsingLeaser(t *testing.T) {
 	}
 
 	// Followers all use the cache and will not poll because they don't have lease.
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		follower, err := NewSchemaWatcher(ctx, &SchemaWatcherConfig{
 			SchemaPoller: NewSchemaPoller(shouldNotUseService, "foo/bar", "main"),
 			Cache:        cache,

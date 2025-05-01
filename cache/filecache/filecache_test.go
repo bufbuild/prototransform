@@ -71,7 +71,6 @@ func TestFileCache(t *testing.T) {
 		},
 	}
 	for _, testCase := range testCases {
-		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 			tmpDir := t.TempDir()
@@ -119,7 +118,6 @@ func TestFileCache_ConfigValidation(t *testing.T) {
 		},
 	}
 	for _, testCase := range testCases {
-		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 			_, err := New(testCase.config)
@@ -156,7 +154,6 @@ func TestSanitize(t *testing.T) {
 		},
 	}
 	for _, testCase := range testCases {
-		testCase := testCase
 		t.Run(testCase.key, func(t *testing.T) {
 			t.Parallel()
 			val := sanitize(testCase.key)

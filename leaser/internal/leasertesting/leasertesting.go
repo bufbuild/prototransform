@@ -66,7 +66,7 @@ func RunSimpleLeaserTests(t *testing.T, ctx context.Context, leaser prototransfo
 
 	checkLeaseInitial := func(lease prototransform.Lease, success bool) {
 		// initial check should complete in 200 millis
-		for i := 0; i < 4; i++ {
+		for i := range 4 {
 			held, err := lease.IsHeld()
 			if err == nil {
 				require.Equal(t, held, success)

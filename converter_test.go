@@ -81,15 +81,15 @@ func TestSchemaService_ConvertMessage(t *testing.T) {
 	}
 
 	resolver := &protoregistry.Types{}
-	for i := 0; i < fileDescriptor.Messages().Len(); i++ {
+	for i := range fileDescriptor.Messages().Len() {
 		message := dynamicpb.NewMessageType(fileDescriptor.Messages().Get(i))
 		require.NoError(t, resolver.RegisterMessage(message))
 	}
-	for i := 0; i < fileDescriptor.Enums().Len(); i++ {
+	for i := range fileDescriptor.Enums().Len() {
 		enum := dynamicpb.NewEnumType(fileDescriptor.Enums().Get(i))
 		require.NoError(t, resolver.RegisterEnum(enum))
 	}
-	for i := 0; i < fileDescriptor.Extensions().Len(); i++ {
+	for i := range fileDescriptor.Extensions().Len() {
 		extension := dynamicpb.NewExtensionType(fileDescriptor.Extensions().Get(i))
 		require.NoError(t, resolver.RegisterExtension(extension))
 	}
