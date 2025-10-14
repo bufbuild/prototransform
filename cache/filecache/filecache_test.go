@@ -15,7 +15,6 @@
 package filecache
 
 import (
-	"context"
 	"fmt"
 	"io/fs"
 	"os"
@@ -77,7 +76,7 @@ func TestFileCache(t *testing.T) {
 			testCase.config.Path = tmpDir
 			cache, err := New(testCase.config)
 			require.NoError(t, err)
-			ctx := context.Background()
+			ctx := t.Context()
 
 			entries := cachetesting.RunSimpleCacheTests(t, ctx, cache)
 			files := make(map[string]struct{}, len(entries))

@@ -37,7 +37,7 @@ func TestNewSchemaWatcher(t *testing.T) {
 	t.Parallel()
 	client := newFakeFileDescriptorSetService()
 	poller := NewSchemaPoller(client, "buf.build/foo/bar", "abc")
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	t.Cleanup(cancel)
 	t.Run("schema poller not provided", func(t *testing.T) {
 		t.Parallel()
@@ -119,7 +119,7 @@ func TestNewSchemaWatcher(t *testing.T) {
 func TestNewSchemaWatcher_cacheKey(t *testing.T) {
 	t.Parallel()
 	client := newFakeFileDescriptorSetService()
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	t.Cleanup(cancel)
 	testCases := []struct {
 		name        string
@@ -192,7 +192,7 @@ func TestSchemaWatcher_getFileDescriptorSet(t *testing.T) {
 	s := &SchemaWatcher{
 		poller: NewSchemaPoller(newFakeFileDescriptorSetService(), "", ""),
 	}
-	got, version, _, err := s.getFileDescriptorSet(context.Background())
+	got, version, _, err := s.getFileDescriptorSet(t.Context())
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	require.NotEmpty(t, version)
@@ -277,7 +277,7 @@ func TestSchemaWatcher_updateResolver(t *testing.T) {
 		}
 		_, err = schemaWatcher.resolver.FindMessageByName("foo.bar.Message")
 		require.Error(t, err, "not found")
-		require.NoError(t, schemaWatcher.updateResolver(context.Background()))
+		require.NoError(t, schemaWatcher.updateResolver(t.Context()))
 		got, err := schemaWatcher.resolver.FindMessageByName("foo.bar.Message")
 		require.NoError(t, err)
 		require.Equal(t, "foo.bar.Message", string(got.Descriptor().FullName()))
@@ -291,7 +291,7 @@ func TestSchemaWatcher_updateResolver(t *testing.T) {
 				},
 			}, "", ""),
 		}
-		err := schemaWatcher.updateResolver(context.Background())
+		err := schemaWatcher.updateResolver(t.Context())
 		require.Error(t, err)
 		require.EqualError(t, err, "failed to fetch schema: internal: foo")
 	})
@@ -311,7 +311,7 @@ func TestSchemaWatcher_updateResolver(t *testing.T) {
 				},
 			}, "", ""),
 		}
-		err := schemaWatcher.updateResolver(context.Background())
+		err := schemaWatcher.updateResolver(t.Context())
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "unable to create resolver from schema:")
 	})
@@ -352,7 +352,7 @@ func TestSchemaWatcher_AwaitReady(t *testing.T) {
 			<-latch
 			return getFiles(ctx, req)
 		}
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(t.Context())
 		defer cancel()
 		watcher, err := NewSchemaWatcher(ctx, &SchemaWatcherConfig{
 			SchemaPoller: NewSchemaPoller(svc, "foo/bar", ""),
@@ -390,7 +390,7 @@ func TestSchemaWatcher_AwaitReady(t *testing.T) {
 			}
 			return getFiles(ctx, req)
 		}
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(t.Context())
 		defer cancel()
 		watcher, err := NewSchemaWatcher(ctx, &SchemaWatcherConfig{
 			SchemaPoller:  NewSchemaPoller(svc, "foo/bar", ""),
@@ -426,7 +426,7 @@ func TestSchemaWatcher_AwaitReady(t *testing.T) {
 				return nil, connect.NewError(connect.CodeUnavailable, errors.New("unavailable"))
 			},
 		}
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(t.Context())
 		defer cancel()
 		watcher, err := NewSchemaWatcher(ctx, &SchemaWatcherConfig{
 			SchemaPoller: NewSchemaPoller(brokenService, "foo/bar", ""),
@@ -448,7 +448,7 @@ func TestSchemaWatcher_UsingCache(t *testing.T) {
 	}
 	t.Run("loads from empty cache", func(t *testing.T) {
 		t.Parallel()
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(t.Context())
 		defer cancel()
 		var loadHookCalled sync.Once
 		loadHookChan := make(chan struct{})
@@ -486,7 +486,7 @@ func TestSchemaWatcher_UsingCache(t *testing.T) {
 	})
 	t.Run("loads from populated cache", func(t *testing.T) {
 		t.Parallel()
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(t.Context())
 		defer cancel()
 		cache := &fakeCache{}
 		// seed cache
@@ -521,7 +521,7 @@ func TestSchemaWatcher_UsingCache(t *testing.T) {
 	})
 	t.Run("saves to cache", func(t *testing.T) {
 		t.Parallel()
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(t.Context())
 		defer cancel()
 		var saveHookCalled sync.Once
 		saveHookChan := make(chan struct{})
@@ -581,7 +581,7 @@ func TestSchemaWatcher_UsingLeaser(t *testing.T) {
 	}
 	leaser := &fakeLeaser{}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
 	leader, err := NewSchemaWatcher(ctx, &SchemaWatcherConfig{
@@ -667,7 +667,7 @@ func TestSchemaWatcher_callbacks(t *testing.T) {
 	}
 
 	notices := make(chan string, 4)
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
 	_, err := NewSchemaWatcher(ctx, &SchemaWatcherConfig{

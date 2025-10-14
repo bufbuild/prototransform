@@ -60,7 +60,7 @@ func TestReflectClientLargeRequest(t *testing.T) {
 		}
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	req := connect.NewRequest(&reflectv1beta1.GetFileDescriptorSetRequest{
 		Module:  moduleName,
 		Version: moduleVersion,
