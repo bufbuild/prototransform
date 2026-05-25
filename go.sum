@@ -2,8 +2,8 @@ buf.build/gen/go/bufbuild/reflect/connectrpc/go v1.19.2-20240117202343-bf8f65e88
 buf.build/gen/go/bufbuild/reflect/connectrpc/go v1.19.2-20240117202343-bf8f65e8876c.1/go.mod h1:7zcFzk1t9fWBxTKhnffvFCMOOSjbLKaXJ/SYvRieX1Y=
 buf.build/gen/go/bufbuild/reflect/protocolbuffers/go v1.36.11-20240117202343-bf8f65e8876c.1 h1:GNe6TYoJCpZyllEaauf+YxQoq5Qky7kHpwzFYyaC6b0=
 buf.build/gen/go/bufbuild/reflect/protocolbuffers/go v1.36.11-20240117202343-bf8f65e8876c.1/go.mod h1:/OFuWMGv28g5AeZOuzwFNb7a1qB6FRH6AD/3KiXg9zA=
-connectrpc.com/connect v1.19.2 h1:McQ83FGdzL+t60peksi0gXC7MQ/iLKgLduAnThbM0mo=
-connectrpc.com/connect v1.19.2/go.mod h1:tN20fjdGlewnSFeZxLKb0xwIZ6ozc3OQs2hTXy4du9w=
+connectrpc.com/connect v1.20.0 h1:6TNDAB+WeNd2uolWNlYczB5E0KNNaVMNUEx8JEUsPmQ=
+connectrpc.com/connect v1.20.0/go.mod h1:A2ygJrukXwWy32vkCAAHNVguZrqZ+jeZ9rGRnGR4dN4=
 github.com/bradfitz/gomemcache v0.0.0-20230905024940-24af94b03874 h1:N7oVaKyGp8bttX0bfZGmcGkjz7DLQXhAn3DNd3T0ous=
 github.com/bradfitz/gomemcache v0.0.0-20230905024940-24af94b03874/go.mod h1:r5xuitiExdLAJ09PR7vBVENGvp4ZuTBeWTGtxuX3K+c=
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
