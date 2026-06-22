@@ -31,16 +31,16 @@ func TestCacheEntryRoundTrip(t *testing.T) {
 	descriptors := &descriptorpb.FileDescriptorSet{
 		File: []*descriptorpb.FileDescriptorProto{
 			{
-				Name:    proto.String("test.proto"),
-				Package: proto.String("test"),
+				Name:    new("test.proto"),
+				Package: new("test"),
 			},
 			{
-				Name:       proto.String("foo.proto"),
-				Package:    proto.String("foo"),
+				Name:       new("foo.proto"),
+				Package:    new("foo"),
 				Dependency: []string{"test.proto"},
 				MessageType: []*descriptorpb.DescriptorProto{
 					{
-						Name: proto.String("Foo"),
+						Name: new("Foo"),
 					},
 				},
 			},

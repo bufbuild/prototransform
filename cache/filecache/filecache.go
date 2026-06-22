@@ -35,6 +35,12 @@ import (
 	"github.com/bufbuild/prototransform"
 )
 
+const (
+	defaultFilenamePrefix           = "cache"
+	defaultFilenameExtension        = "bin"
+	defaultFilenameExtensionWithDot = "." + defaultFilenameExtension
+)
+
 // Config represents the configuration parameters used to
 // create a new file-system-backed cache.
 type Config struct {
@@ -69,12 +75,12 @@ func New(config Config) (prototransform.Cache, error) {
 	}
 	config.Path = path
 	if config.FilenamePrefix == "" {
-		config.FilenamePrefix = "cache"
+		config.FilenamePrefix = defaultFilenamePrefix
 	} else {
 		config.FilenamePrefix = strings.TrimSuffix(config.FilenamePrefix, "_")
 	}
 	if config.FilenameExtension == "" {
-		config.FilenameExtension = ".bin"
+		config.FilenameExtension = defaultFilenameExtensionWithDot
 	} else if !strings.HasPrefix(config.FilenameExtension, ".") {
 		config.FilenameExtension = "." + config.FilenameExtension
 	}

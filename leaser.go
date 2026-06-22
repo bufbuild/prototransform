@@ -102,14 +102,14 @@ type Lease interface {
 	Cancel()
 }
 
-func getLeaseHolder(userProvidedData []byte) ([]byte, error) {
+func getLeaseHolder(ctx context.Context, userProvidedData []byte) ([]byte, error) {
 	var leaseEntry prototransformv1alpha1.LeaseEntry
 	if userProvidedData != nil {
 		leaseEntry.Holder = &prototransformv1alpha1.LeaseEntry_UserProvided{
 			UserProvided: userProvidedData,
 		}
 	} else {
-		leaseHolder, err := currentProcess()
+		leaseHolder, err := currentProcess(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("failed to compute current process bytes for lease: %w", err)
 		}
@@ -124,7 +124,7 @@ func getLeaseHolder(userProvidedData []byte) ([]byte, error) {
 	return leaseData, nil
 }
 
-func currentProcess() (*prototransformv1alpha1.LeaseHolder, error) {
+func currentProcess(ctx context.Context) (*prototransformv1alpha1.LeaseHolder, error) {
 	currentProcessInit.Do(func() {
 		var errs []error
 		hostname, hostnameErr := os.Hostname()
@@ -134,7 +134,10 @@ func currentProcess() (*prototransformv1alpha1.LeaseHolder, error) {
 		// UDP isn't stateful, so this does not actually connect to anything.
 		// But this is a reliable way to see the preferred network interface
 		// and IP of the host, by examining the client IP of the socket.
-		conn, connErr := net.Dial("udp", "8.8.8.8:53")
+		dialer := &net.Dialer{}
+		dialCtx, dialCancel := context.WithTimeout(context.WithoutCancel(ctx), time.Second)
+		defer dialCancel()
+		conn, connErr := dialer.DialContext(dialCtx, "udp", "8.8.8.8:53")
 		if connErr != nil {
 			errs = append(errs, connErr)
 		}

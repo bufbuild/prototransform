@@ -36,36 +36,36 @@ func TestFileCache(t *testing.T) {
 	}{
 		{
 			name:            "default config",
-			expectPrefix:    "cache",
-			expectExtension: "bin",
+			expectPrefix:    defaultFilenamePrefix,
+			expectExtension: defaultFilenameExtension,
 			expectMode:      0600,
 		},
 		{
 			name:            "custom prefix with underscore",
 			config:          Config{FilenamePrefix: "abc_"},
 			expectPrefix:    "abc",
-			expectExtension: "bin",
+			expectExtension: defaultFilenameExtension,
 			expectMode:      0600,
 		},
 		{
 			name:            "custom prefix without underscore",
 			config:          Config{FilenamePrefix: "abc"},
 			expectPrefix:    "abc",
-			expectExtension: "bin",
+			expectExtension: defaultFilenameExtension,
 			expectMode:      0600,
 		},
 		{
 			name:            "custom extension",
 			config:          Config{FilenameExtension: "cdb"},
-			expectPrefix:    "cache",
+			expectPrefix:    defaultFilenamePrefix,
 			expectExtension: "cdb",
 			expectMode:      0600,
 		},
 		{
 			name:            "custom mode",
 			config:          Config{FileMode: 0740},
-			expectPrefix:    "cache",
-			expectExtension: "bin",
+			expectPrefix:    defaultFilenamePrefix,
+			expectExtension: defaultFilenameExtension,
 			expectMode:      0740,
 		},
 	}
