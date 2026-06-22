@@ -720,6 +720,7 @@ func TestSchemaWatcher_callbacks(t *testing.T) {
 
 type fakeFileDescriptorSetService struct {
 	reflectv1beta1connect.UnimplementedFileDescriptorSetServiceHandler
+
 	getFileDescriptorSetFunc func(context.Context, *connect.Request[reflectv1beta1.GetFileDescriptorSetRequest]) (*connect.Response[reflectv1beta1.GetFileDescriptorSetResponse], error)
 }
 

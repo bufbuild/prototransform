@@ -146,7 +146,7 @@ func NewSchemaWatcher(ctx context.Context, config *SchemaWatcherConfig) (*Schema
 	ctx, cancel := context.WithCancel(ctx)
 	var lease Lease
 	if config.Leaser != nil {
-		leaseHolder, err := getLeaseHolder(config.CurrentProcess)
+		leaseHolder, err := getLeaseHolder(ctx, config.CurrentProcess)
 		if err != nil {
 			cancel()
 			return nil, err
@@ -169,133 +169,6 @@ func NewSchemaWatcher(ctx context.Context, config *SchemaWatcherConfig) (*Schema
 	}
 	schemaWatcher.start(ctx, pollingPeriod, config.Jitter)
 	return schemaWatcher, nil
-}
-
-func (s *SchemaWatcher) getResolver() *resolver {
-	s.resolverMu.RLock()
-	defer s.resolverMu.RUnlock()
-	return s.resolver
-}
-
-func (s *SchemaWatcher) updateResolver(ctx context.Context) (err error) {
-	var changed bool
-	if s.callback != nil || s.errCallback != nil {
-		// make sure to invoke callback at the end to notify application
-		defer func() {
-			if changed && s.callback != nil {
-				go func() {
-					// Lock forces sequential calls to callback and also
-					// means callback does not need to be thread-safe.
-					s.callbackMu.Lock()
-					defer s.callbackMu.Unlock()
-					s.callback(s)
-				}()
-			} else if err != nil && !errors.Is(err, ErrSchemaNotModified) && s.errCallback != nil {
-				go func() {
-					s.callbackMu.Lock()
-					defer s.callbackMu.Unlock()
-					s.errCallback(s, err)
-				}()
-			}
-		}()
-	}
-
-	schema, schemaVersion, schemaTimestamp, err := s.getFileDescriptorSet(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to fetch schema: %w", err)
-	}
-
-	s.resolverMu.RLock()
-	prevSchema, prevTimestamp := s.resolvedSchema, s.resolveTime
-	s.resolverMu.RUnlock()
-
-	if prevSchema != nil {
-		if schemaTimestamp.Before(prevTimestamp) {
-			// Only possible if schemaTimestamp is loaded from cache entry that is
-			// older than last successful load. If that happens, just leave
-			// the existing resolver in place.
-			return nil
-		}
-		if proto.Equal(prevSchema, schema) {
-			// nothing changed
-			return nil
-		}
-	}
-
-	resolver, err := newResolver(schema)
-	if err != nil {
-		return fmt.Errorf("unable to create resolver from schema: %w", err)
-	}
-
-	if len(s.includeSymbols) > 0 {
-		var missingSymbols []string
-		for _, sym := range s.includeSymbols {
-			_, err := resolver.FindDescriptorByName(protoreflect.FullName(sym))
-			if err != nil {
-				missingSymbols = append(missingSymbols, sym)
-			}
-		}
-		if len(missingSymbols) > 0 {
-			sort.Strings(missingSymbols)
-			for i, sym := range missingSymbols {
-				missingSymbols[i] = strconv.Quote(sym)
-			}
-			return fmt.Errorf("schema poller returned incomplete schema: missing %v", strings.Join(missingSymbols, ", "))
-		}
-	}
-
-	s.resolverMu.Lock()
-	defer s.resolverMu.Unlock()
-	s.resolver = resolver
-	s.resolveTime = schemaTimestamp
-	s.resolvedSchema = schema
-	s.resolvedVersion = schemaVersion
-	s.resolverErr = nil
-	changed = true
-	return nil
-}
-
-func (s *SchemaWatcher) initialUpdateResolver(ctx context.Context, pollingPeriod time.Duration, jitter float64) (success bool) {
-	defer func() {
-		s.resolverMu.Lock()
-		defer s.resolverMu.Unlock()
-		close(s.resolverReady)
-		s.resolverReady = nil
-		if !success {
-			s.stop = nil
-		}
-	}()
-
-	var delay time.Duration
-	for {
-		err := s.updateResolver(ctx)
-		if err == nil {
-			// success!
-			return true
-		}
-		s.resolverMu.Lock()
-		s.resolverErr = err
-		s.resolverMu.Unlock()
-		if delay == 0 {
-			// immediately retry, but delay 1s if it fails again
-			delay = time.Second
-		} else {
-			timer := time.NewTimer(addJitter(delay, jitter))
-			select {
-			case <-ctx.Done():
-				timer.Stop()
-				return false
-			case <-timer.C:
-			}
-			delay *= 2 // exponential backoff
-		}
-
-		// we never wait longer than configured polling period, so we only apply
-		// exponential backoff up to this point
-		if delay > pollingPeriod {
-			delay = pollingPeriod
-		}
-	}
 }
 
 // AwaitReady returns a non-nil error when s has downloaded a schema and is
@@ -502,6 +375,150 @@ func (s *SchemaWatcher) ResolvedSchema() *descriptorpb.FileDescriptorSet {
 	return schema
 }
 
+// Stop the [SchemaWatcher] from polling the BSR for new schemas. Can be called
+// multiple times safely.
+func (s *SchemaWatcher) Stop() {
+	s.resolverMu.Lock()
+	defer s.resolverMu.Unlock()
+	if s.stop != nil {
+		s.stop()
+		s.stop = nil
+	}
+}
+
+func (s *SchemaWatcher) IsStopped() bool {
+	s.resolverMu.RLock()
+	defer s.resolverMu.RUnlock()
+	return s.stop == nil
+}
+
+func (s *SchemaWatcher) getResolver() *resolver {
+	s.resolverMu.RLock()
+	defer s.resolverMu.RUnlock()
+	return s.resolver
+}
+
+func (s *SchemaWatcher) updateResolver(ctx context.Context) (err error) {
+	var changed bool
+	if s.callback != nil || s.errCallback != nil {
+		// make sure to invoke callback at the end to notify application
+		defer func() {
+			if changed && s.callback != nil {
+				go func() {
+					// Lock forces sequential calls to callback and also
+					// means callback does not need to be thread-safe.
+					s.callbackMu.Lock()
+					defer s.callbackMu.Unlock()
+					s.callback(s)
+				}()
+			} else if err != nil && !errors.Is(err, ErrSchemaNotModified) && s.errCallback != nil {
+				go func() {
+					s.callbackMu.Lock()
+					defer s.callbackMu.Unlock()
+					s.errCallback(s, err)
+				}()
+			}
+		}()
+	}
+
+	schema, schemaVersion, schemaTimestamp, err := s.getFileDescriptorSet(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to fetch schema: %w", err)
+	}
+
+	s.resolverMu.RLock()
+	prevSchema, prevTimestamp := s.resolvedSchema, s.resolveTime
+	s.resolverMu.RUnlock()
+
+	if prevSchema != nil {
+		if schemaTimestamp.Before(prevTimestamp) {
+			// Only possible if schemaTimestamp is loaded from cache entry that is
+			// older than last successful load. If that happens, just leave
+			// the existing resolver in place.
+			return nil
+		}
+		if proto.Equal(prevSchema, schema) {
+			// nothing changed
+			return nil
+		}
+	}
+
+	resolver, err := newResolver(schema)
+	if err != nil {
+		return fmt.Errorf("unable to create resolver from schema: %w", err)
+	}
+
+	if len(s.includeSymbols) > 0 {
+		var missingSymbols []string
+		for _, sym := range s.includeSymbols {
+			_, err := resolver.FindDescriptorByName(protoreflect.FullName(sym))
+			if err != nil {
+				missingSymbols = append(missingSymbols, sym)
+			}
+		}
+		if len(missingSymbols) > 0 {
+			sort.Strings(missingSymbols)
+			for i, sym := range missingSymbols {
+				missingSymbols[i] = strconv.Quote(sym)
+			}
+			return fmt.Errorf("schema poller returned incomplete schema: missing %v", strings.Join(missingSymbols, ", "))
+		}
+	}
+
+	s.resolverMu.Lock()
+	defer s.resolverMu.Unlock()
+	s.resolver = resolver
+	s.resolveTime = schemaTimestamp
+	s.resolvedSchema = schema
+	s.resolvedVersion = schemaVersion
+	s.resolverErr = nil
+	changed = true
+	return nil
+}
+
+func (s *SchemaWatcher) initialUpdateResolver(ctx context.Context, pollingPeriod time.Duration, jitter float64) (success bool) {
+	defer func() {
+		s.resolverMu.Lock()
+		defer s.resolverMu.Unlock()
+		close(s.resolverReady)
+		s.resolverReady = nil
+		if !success {
+			s.stop = nil
+		}
+	}()
+
+	var delay time.Duration
+	for {
+		err := s.updateResolver(ctx)
+		if err == nil {
+			// success!
+			return true
+		}
+		s.resolverMu.Lock()
+		s.resolverErr = err
+		s.resolverMu.Unlock()
+		if delay == 0 {
+			// immediately retry, but delay 1s if it fails again
+			delay = time.Second
+		} else {
+			timer := time.NewTimer(addJitter(delay, jitter))
+			select {
+			case <-ctx.Done():
+				timer.Stop()
+				return false
+			case <-timer.C:
+			}
+			delay *= 2 // exponential backoff
+		}
+
+		// we never wait longer than configured polling period, so we only apply
+		// exponential backoff up to this point
+		if delay > pollingPeriod {
+			delay = pollingPeriod
+		}
+	}
+}
+
 func (s *SchemaWatcher) start(ctx context.Context, pollingPeriod time.Duration, jitter float64) {
 	go func() {
 		if !s.initialUpdateResolver(ctx, pollingPeriod, jitter) {
@@ -536,23 +553,6 @@ func (s *SchemaWatcher) start(ctx context.Context, pollingPeriod time.Duration, 
 			}
 		}
 	}()
-}
-
-// Stop the [SchemaWatcher] from polling the BSR for new schemas. Can be called
-// multiple times safely.
-func (s *SchemaWatcher) Stop() {
-	s.resolverMu.Lock()
-	defer s.resolverMu.Unlock()
-	if s.stop != nil {
-		s.stop()
-		s.stop = nil
-	}
-}
-
-func (s *SchemaWatcher) IsStopped() bool {
-	s.resolverMu.RLock()
-	defer s.resolverMu.RUnlock()
-	return s.stop == nil
 }
 
 func (s *SchemaWatcher) getFileDescriptorSet(ctx context.Context) (*descriptorpb.FileDescriptorSet, string, time.Time, error) {
@@ -632,17 +632,15 @@ var _ leaseError = leaseHolderUnknownError{}
 
 type leaseNotHeldError struct{}
 
-func (e leaseNotHeldError) leaseError() {}
-
 func (e leaseNotHeldError) Error() string {
 	return "cannot poll for schema because current process is not leaseholder"
 }
 
+func (e leaseNotHeldError) leaseError() {}
+
 type leaseHolderUnknownError struct {
 	err error
 }
-
-func (e leaseHolderUnknownError) leaseError() {}
 
 func (e leaseHolderUnknownError) Error() string {
 	return fmt.Sprintf("cannot poll for scheme because leaseholder is unknown: %v", e.err)
@@ -651,6 +649,8 @@ func (e leaseHolderUnknownError) Error() string {
 func (e leaseHolderUnknownError) Unwrap() error {
 	return e.err
 }
+
+func (e leaseHolderUnknownError) leaseError() {}
 
 // cacheMultiErr wraps multiple errors with fmt.Errorf.
 func cacheMultiErr(msg string, err error, cacheErr error) error {
