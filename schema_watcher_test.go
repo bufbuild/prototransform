@@ -262,9 +262,9 @@ func TestSchemaWatcher_updateResolver(t *testing.T) {
 		emptySchema := &descriptorpb.FileDescriptorSet{
 			File: []*descriptorpb.FileDescriptorProto{
 				{
-					Name:    new("test.proto"),
-					Syntax:  new("proto2"),
-					Package: new("foo.bar"),
+					Name:    proto.String("test.proto"),
+					Syntax:  proto.String("proto2"),
+					Package: proto.String("foo.bar"),
 				},
 			},
 		}
@@ -648,7 +648,7 @@ func TestSchemaWatcher_callbacks(t *testing.T) {
 			case 3:
 				// now change descriptors for next call
 				newDescriptors := fakeFileDescriptorSet()
-				newDescriptors.File[0].MessageType[0].Name = new("NewMessageName")
+				newDescriptors.File[0].MessageType[0].Name = proto.String("NewMessageName")
 				descriptors.Store(newDescriptors)
 			case 4:
 				// do nothing, no change so should not result in a callback
@@ -743,80 +743,80 @@ func fakeFileDescriptorSet() *descriptorpb.FileDescriptorSet {
 	return &descriptorpb.FileDescriptorSet{
 		File: []*descriptorpb.FileDescriptorProto{
 			{
-				Name:    new("test.proto"),
-				Syntax:  new("proto2"),
-				Package: new("foo.bar"),
+				Name:    proto.String("test.proto"),
+				Syntax:  proto.String("proto2"),
+				Package: proto.String("foo.bar"),
 				MessageType: []*descriptorpb.DescriptorProto{
 					{
-						Name: new("Message"),
+						Name: proto.String("Message"),
 						Field: []*descriptorpb.FieldDescriptorProto{
 							{
-								Name:     new("name"),
-								Number:   new(int32(1)),
+								Name:     proto.String("name"),
+								Number:   proto.Int32(1),
 								Type:     descriptorpb.FieldDescriptorProto_TYPE_STRING.Enum(),
 								Label:    descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL.Enum(),
-								JsonName: new("name"),
+								JsonName: proto.String("name"),
 							},
 							{
-								Name:     new("id"),
-								Number:   new(int32(2)),
+								Name:     proto.String("id"),
+								Number:   proto.Int32(2),
 								Type:     descriptorpb.FieldDescriptorProto_TYPE_INT64.Enum(),
 								Label:    descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL.Enum(),
-								JsonName: new("id"),
+								JsonName: proto.String("id"),
 							},
 							{
-								Name:     new("child"),
-								Number:   new(int32(3)),
+								Name:     proto.String("child"),
+								Number:   proto.Int32(3),
 								Type:     descriptorpb.FieldDescriptorProto_TYPE_MESSAGE.Enum(),
-								TypeName: new(".foo.bar.Message"),
+								TypeName: proto.String(".foo.bar.Message"),
 								Label:    descriptorpb.FieldDescriptorProto_LABEL_REPEATED.Enum(),
-								JsonName: new("children"),
+								JsonName: proto.String("children"),
 							},
 							{
-								Name:     new("kind"),
-								Number:   new(int32(4)),
+								Name:     proto.String("kind"),
+								Number:   proto.Int32(4),
 								Type:     descriptorpb.FieldDescriptorProto_TYPE_ENUM.Enum(),
-								TypeName: new(".foo.bar.Kind"),
+								TypeName: proto.String(".foo.bar.Kind"),
 								Label:    descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL.Enum(),
-								JsonName: new("kind"),
+								JsonName: proto.String("kind"),
 							},
 						},
 						ExtensionRange: []*descriptorpb.DescriptorProto_ExtensionRange{
 							{
-								Start: new(int32(100)),
-								End:   new(int32(10000)),
+								Start: proto.Int32(100),
+								End:   proto.Int32(10000),
 							},
 						},
 					},
 				},
 				EnumType: []*descriptorpb.EnumDescriptorProto{
 					{
-						Name: new("Kind"),
+						Name: proto.String("Kind"),
 						Value: []*descriptorpb.EnumValueDescriptorProto{
 							{
-								Name:   new("UNKNOWN"),
+								Name:   proto.String("UNKNOWN"),
 								Number: proto.Int32(0),
 							},
 							{
-								Name:   new("GOOD"),
-								Number: new(int32(1)),
+								Name:   proto.String("GOOD"),
+								Number: proto.Int32(1),
 							},
 							{
-								Name:   new("BAD"),
-								Number: new(int32(2)),
+								Name:   proto.String("BAD"),
+								Number: proto.Int32(2),
 							},
 							{
-								Name:   new("UGLY"),
-								Number: new(int32(3)),
+								Name:   proto.String("UGLY"),
+								Number: proto.Int32(3),
 							},
 						},
 					},
 				},
 				Extension: []*descriptorpb.FieldDescriptorProto{
 					{
-						Name:     new("xt"),
-						Extendee: new(".foo.bar.Message"),
-						Number:   new(int32(123)),
+						Name:     proto.String("xt"),
+						Extendee: proto.String(".foo.bar.Message"),
+						Number:   proto.Int32(123),
 						Type:     descriptorpb.FieldDescriptorProto_TYPE_STRING.Enum(),
 					},
 				},
