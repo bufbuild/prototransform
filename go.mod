@@ -1,6 +1,6 @@
 module github.com/bufbuild/prototransform
 
-go 1.26.0
+go 1.25.0
 
 require (
 	buf.build/gen/go/bufbuild/reflect/connectrpc/go v1.20.0-20240117202343-bf8f65e8876c.1
