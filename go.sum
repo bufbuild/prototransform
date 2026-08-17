@@ -1,7 +1,7 @@
 buf.build/gen/go/bufbuild/reflect/connectrpc/go v1.20.0-20240117202343-bf8f65e8876c.1 h1:kTLi4Em7Gm9ERmbHPaX4XbVgru6g4KocXlHQxBTkJuQ=
 buf.build/gen/go/bufbuild/reflect/connectrpc/go v1.20.0-20240117202343-bf8f65e8876c.1/go.mod h1:8s+MxTI72fmOUciW2NvSBhQhwmOWL30CrYedkwyHf2w=
-buf.build/gen/go/bufbuild/reflect/protocolbuffers/go v1.36.11-20240117202343-bf8f65e8876c.1 h1:GNe6TYoJCpZyllEaauf+YxQoq5Qky7kHpwzFYyaC6b0=
-buf.build/gen/go/bufbuild/reflect/protocolbuffers/go v1.36.11-20240117202343-bf8f65e8876c.1/go.mod h1:/OFuWMGv28g5AeZOuzwFNb7a1qB6FRH6AD/3KiXg9zA=
+buf.build/gen/go/bufbuild/reflect/protocolbuffers/go v1.36.12-20240117202343-bf8f65e8876c.1 h1:AQ9qdZ+46jzDhmoHH95JXLTw0fqMDHpDV3QUDSyVZBA=
+buf.build/gen/go/bufbuild/reflect/protocolbuffers/go v1.36.12-20240117202343-bf8f65e8876c.1/go.mod h1:3jX60Ub76TejMVRjJBfqm0m5Cm7gfzJa3j57qHnSvXs=
 connectrpc.com/connect v1.20.0 h1:6TNDAB+WeNd2uolWNlYczB5E0KNNaVMNUEx8JEUsPmQ=
 connectrpc.com/connect v1.20.0/go.mod h1:A2ygJrukXwWy32vkCAAHNVguZrqZ+jeZ9rGRnGR4dN4=
 github.com/bradfitz/gomemcache v0.0.0-20230905024940-24af94b03874 h1:N7oVaKyGp8bttX0bfZGmcGkjz7DLQXhAn3DNd3T0ous=
@@ -29,8 +29,8 @@ github.com/rogpeppe/go-internal v1.6.1 h1:/FiVV8dS/e+YqF2JvO3yXRFbBLTIuSDkuC7aBO
 github.com/rogpeppe/go-internal v1.6.1/go.mod h1:xXDCJY+GAPziupqXw64V24skbSoqbTEfhy4qGm1nDQc=
 github.com/stretchr/testify v1.11.1 h1:7s2iGBzp5EwR7/aIZr8ao5+dra3wiQyKjjFuvgVKu7U=
 github.com/stretchr/testify v1.11.1/go.mod h1:wZwfW3scLgRK+23gO65QZefKpKQRnfz6sD981Nm4B6U=
-google.golang.org/protobuf v1.36.11 h1:fV6ZwhNocDyBLK0dj+fg8ektcVegBBuEolpbTQyBNVE=
-google.golang.org/protobuf v1.36.11/go.mod h1:HTf+CrKn2C3g5S8VImy6tdcUvCska2kB7j23XfzDpco=
+google.golang.org/protobuf v1.36.12 h1:pJOKDDOyeXErUroCihFAd5LQuwXBSpVnKGrj5o/fwxc=
+google.golang.org/protobuf v1.36.12/go.mod h1:HTf+CrKn2C3g5S8VImy6tdcUvCska2kB7j23XfzDpco=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
 gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
 gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c h1:Hei/4ADfdWqJk1ZMxUNpqntNwaWcugrBjAiHlqqRiVk=
