@@ -3,7 +3,6 @@
 # Prototransform
 
 [![Build](https://github.com/bufbuild/prototransform/actions/workflows/ci.yaml/badge.svg?branch=main)][badges_ci]
-[![Report Card](https://goreportcard.com/badge/github.com/bufbuild/prototransform)][badges_goreportcard]
 [![GoDoc](https://pkg.go.dev/badge/github.com/bufbuild/prototransform.svg)][badges_godoc]
 
 ### Convert protobuf message data to alternate formats
@@ -217,7 +216,6 @@ This project is currently in **alpha**. The API should be considered unstable an
 Offered under the [Apache 2 license][license].
 
 [badges_ci]: https://github.com/bufbuild/prototransform/actions/workflows/ci.yaml
-[badges_goreportcard]: https://goreportcard.com/report/github.com/bufbuild/prototransform
 [badges_godoc]: https://pkg.go.dev/github.com/bufbuild/prototransform
 [badges_slack]: https://join.slack.com/t/bufbuild/shared_invite/zt-f5k547ki-dW9LjSwEnl6qTzbyZtPojw
 [license]: https://github.com/bufbuild/prototransform/blob/main/LICENSE.txt
